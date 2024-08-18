@@ -8,6 +8,7 @@ import argparse
 import logging
 import yaml
 import time
+import select
 
 def handle_client(client_socket, partner_socket, hello_message=None, transcript_file=None, session_name=None, mirror_stdout=False, max_messages=0, logger=None):
     persona_name = None
@@ -24,36 +25,7 @@ def handle_client(client_socket, partner_socket, hello_message=None, transcript_
         client_socket.send(hello_message.encode() + b'\n')
         logger.info(f"Sent hello message: {hello_message} to {client_socket.getpeername()}")
     
-    message_count = 0
-    while True:
-        try:
-            data = client_socket.recv(4096)
-            if not data:
-                logger.warning(f"Client {client_socket.getpeername()} disconnected")
-                break
-            partner_socket.send(data)
-            if transcript_file:
-                lines = data.decode('utf-8').strip()
-                lines = re.sub(r'\n+', '\n', lines)
-                transcript_content = f"{persona_name}:\n{lines}\n----------\n"
-                transcript_file.write(transcript_content)
-                transcript_file.flush()
-                if mirror_stdout:
-                    print(f"({message_count}) {transcript_content}", end='')
-            
-            message_count += 1
-            if max_messages > 0 and message_count >= max_messages:
-                logger.warning(f"Reached max messages: {max_messages}")
-                break
-        except:
-            break
-
-    if(hello_message):
-        client_socket.send(b'/end\n')
-        partner_socket.send(b'/end\n')
-        logger.info(f"Sent '/end' message to {client_socket.getpeername()} and {partner_socket.getpeername()}")
-    client_socket.close()
-    partner_socket.close()
+    return persona_name
 
 def start_proxy(config, mirror_stdout, max_messages, logger):
     port1 = config['proxy']['port1']
@@ -88,38 +60,73 @@ def start_proxy(config, mirror_stdout, max_messages, logger):
             logger.info(f"Connection from {addr2[0]}:{addr2[1]} on port {port2}")
 
             iso_date = datetime.datetime.now().isoformat()
-            transcript_filename = f'transcript_{iso_date}_{addr1[0]}-{addr2[0]}.txt'
+            transcript_filename = f'transcript_{iso_date}_{addr1[0]}-{addr2[0]}.md'
             
             with open(transcript_filename, 'w', encoding='utf-8') as transcript_file:
-                if hello:
-                    if random.choice([True, False]):
-                        t1 = threading.Thread(target=handle_client, args=(client1, client2, hello, transcript_file, None, mirror_stdout, max_messages, logger))
-                        t2 = threading.Thread(target=handle_client, args=(client2, client1, None, transcript_file, None, mirror_stdout, max_messages, logger))
-                    else:
-                        t1 = threading.Thread(target=handle_client, args=(client1, client2, None, transcript_file, None, mirror_stdout, max_messages, logger))
-                        t2 = threading.Thread(target=handle_client, args=(client2, client1, hello, transcript_file, None, mirror_stdout, max_messages, logger))
-                else:
-                    t1 = threading.Thread(target=handle_client, args=(client1, client2, None, transcript_file, None, mirror_stdout, max_messages, logger))
-                    t2 = threading.Thread(target=handle_client, args=(client2, client1, None, transcript_file, None, mirror_stdout, max_messages, logger))
+                send_hello_to_first = random.choice([True, False])
+                persona1 = handle_client(client1, client2, hello if send_hello_to_first else None, transcript_file, None, mirror_stdout, max_messages, logger)
+                persona2 = handle_client(client2, client1, hello if not send_hello_to_first else None, transcript_file, None, mirror_stdout, max_messages, logger)
 
-                t1.start()
-                t2.start()
+                transcript_file.write(f"| Message | Delta (s) | {persona1} | {persona2} |\n")
+                transcript_file.write("|---------|-----------|")
+                transcript_file.write("-" * len(persona1))
+                transcript_file.write("|")
+                transcript_file.write("-" * len(persona2))
+                transcript_file.write("|\n")
 
-                # Wait for both threads to complete
-                t1.join()
-                t2.join()
+                message_count = 0
+                last_time = datetime.datetime.now()
 
-            logger.info(f"Conversation ended. Transcript saved to {transcript_filename}")
+                while True:
+                    ready_sockets, _, _ = select.select([client1, client2], [], [], 1.0)
+                    
+                    if not ready_sockets:
+                        continue
+
+                    for ready_socket in ready_sockets:
+                        try:
+                            data = ready_socket.recv(4096)
+                            if not data:
+                                logger.warning(f"Client {ready_socket.getpeername()} disconnected")
+                                raise Exception("Client disconnected")
+
+                            current_time = datetime.datetime.now()
+                            delta = int((current_time - last_time).total_seconds())
+                            last_time = current_time
+
+                            message = data.decode('utf-8').strip()
+                            message = re.sub(r'\n+', ' ', message)
+
+                            if ready_socket == client1:
+                                transcript_file.write(f"| {message_count} | {delta} | {message} | |\n")
+                                client2.send(data)
+                            else:
+                                transcript_file.write(f"| {message_count} | {delta} | | {message} |\n")
+                                client1.send(data)
+
+                            transcript_file.flush()
+                            if mirror_stdout:
+                                print(f"({message_count}) Delta: {delta}s, {persona1 if ready_socket == client1 else persona2}: {message}")
+                            
+                            message_count += 1
+                            if max_messages > 0 and message_count >= max_messages:
+                                logger.warning(f"Reached max messages: {max_messages}")
+                                raise Exception("Max messages reached")
+
+                        except Exception as e:
+                            logger.error(f"Error handling client: {e}")
+                            raise
+
+        except Exception as e:
+            logger.error(f"Connection ended: {e}")
 
         finally:
-            # Close the client sockets
             client1.close()
             client2.close()
-            # Close the server sockets
             server1.close()
             server2.close()
             
-        # Add a small delay before starting the next iteration
+        logger.info(f"Conversation ended. Transcript saved to {transcript_filename}")
         time.sleep(1)
 
 if __name__ == "__main__":
@@ -140,7 +147,6 @@ if __name__ == "__main__":
     except FileNotFoundError:
         config = {'proxy': {}}
 
-    # Override config with command line arguments
     config['proxy']['mirror'] = args.mirror
     config['proxy']['max_messages'] = args.max_messages
     config['proxy']['verbose'] = args.verbose
@@ -149,7 +155,6 @@ if __name__ == "__main__":
     config['proxy']['port1'] = args.port1
     config['proxy']['port2'] = args.port2
 
-    # Setup logging
     log_level = logging.DEBUG if config['proxy'].get('verbose', False) else logging.INFO
     log_format = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     if config['proxy'].get('logfile'):

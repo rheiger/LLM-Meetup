@@ -20,7 +20,7 @@ def load_system_prompt(prompt_file: str) -> Tuple[str, str]:
 
 def handle_client(s: socket.socket, openai_client: openai.Client, config: Dict[str, Any], system_prompt: str, persona_name: str) -> None:
     # Send persona name to proxy
-    s.sendall(f"/iam: {persona_name}\n".encode('utf-8'))
+    s.sendall(f"/iam: {persona_name} (OpenAI)\n".encode('utf-8'))
 
     while True:
         try:

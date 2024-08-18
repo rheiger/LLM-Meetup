@@ -1,4 +1,5 @@
 .env
 transcript_*.txt
+transcript_*.md
 personas/angryai.md
 personas/narcissistic_sociopath.md

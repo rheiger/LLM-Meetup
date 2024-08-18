@@ -19,7 +19,7 @@ def load_system_prompt(prompt_file: str) -> Tuple[str, str]:
 
 def handle_client(s: socket.socket, config: Dict[str, Any], system_prompt: str, persona_name: str) -> None:
     # Send persona name to proxy
-    s.sendall(f"/iam: {persona_name}\n".encode('utf-8'))
+    s.sendall(f"/iam: {persona_name} (LM Studio)\n".encode('utf-8'))
     
     client = OpenAI(base_url=config['lmstudio_api_base'], api_key="lm-studio")
     chat_history: List[Dict[str, str]] = [{"role": "system", "content": system_prompt}]

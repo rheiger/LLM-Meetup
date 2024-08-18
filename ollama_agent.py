@@ -22,7 +22,7 @@ def load_system_prompt(prompt_file: str) -> Tuple[str, str]:
 def handle_client(s: socket.socket, ollama_client: ollama.Client, config: Dict[str, Any], system_prompt: str, persona_name: str) -> None:
     """Handle client connections and process requests."""
     # Send persona name to proxy
-    s.sendall(f"/iam: {persona_name}\n".encode('utf-8'))
+    s.sendall(f"/iam: {persona_name} (Ollama)\n".encode('utf-8'))
     chat_history: List[Dict[str, str]] = [{"role": "system", "content": system_prompt}]
     while True:
         try:

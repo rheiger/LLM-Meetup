@@ -33,9 +33,11 @@ python --host localhost --port 18888 ollama_agent.py personas/youngsheldon.md # 
 python --host localhost --port 19999 lmstudio_agent.py personas/psychotherapist.md # in a in a third terminal window
 
 ```
+## What's new
+- Transcripts are now written in tabular form in markdown files, making it easier to read and follwo the conversation.
 
 ## Outlook
 There will be more to come. But for now I will concentrate on the initial setup.
 
 #### Version and last edited
-This is version v0.1.1 (build: 8) by rheiger@icloud.com on 2024-08-18 18:49:30
+This is version v0.1.2 (build: 9) by rheiger@icloud.com on 2024-08-18 19:41:29
