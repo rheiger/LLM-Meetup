@@ -1,0 +1,49 @@
+# Anthropic Configuration
+
+# Model selection
+model: claude-3-sonnet-20240229 
+# Available models:
+# - claude-3-opus-20240229 (most capable)
+# - claude-3-sonnet-20240229 (balanced)
+# - claude-3-haiku-20240307 (fastest)
+# - claude-2.1
+# - claude-2.0
+# - claude-instant-1.2
+
+# API base URL (optional, use if different from default)
+# api_base: "https://api.anthropic.com"
+
+# Request parameters
+max_tokens: 2048
+temperature: 0.7
+top_p: 1.0
+# top_k: 40  # Optional, mutually exclusive with top_p
+
+# System prompt (can be overridden by command-line argument)
+system_prompt: "You are Claude, an AI assistant created by Anthropic."
+
+# TCP Server settings
+host: "127.0.0.1"
+port: 18888
+
+# Logging
+log_level: "INFO"
+
+# Retry settings
+max_retries: 3
+retry_delay: 1.0
+
+# Stream response (optional)
+# stream: false
+
+# Additional model parameters (optional)
+# stop_sequences: ["\n\nHuman:", "\n\nAssistant:"]
+# presence_penalty: 0.0
+# frequency_penalty: 0.0
+
+# Custom headers (optional)
+# custom_headers:
+#   X-Custom-Header: "value"
+
+# Timeout settings (in seconds)
+request_timeout: 30.0

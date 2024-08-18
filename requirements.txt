@@ -1,0 +1,5 @@
+PyYAML
+openai
+python-dotenv
+anthropic
+ollama
