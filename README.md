@@ -23,4 +23,4 @@ The proxy script will be `llm-proxy.py`
 There will be more to come. But for now I will concentrate on the initial setup.
 
 #### Version and last edited
-This is version v0.0.5 (build: 5) by rheiger@icloud.com on 2024-08-18 17:00:08
+This is version v0.0.6 (build: 6) by rheiger@icloud.com on 2024-08-18 17:10:22
