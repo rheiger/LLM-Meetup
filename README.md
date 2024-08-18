@@ -35,9 +35,10 @@ python --host localhost --port 19999 lmstudio_agent.py personas/psychotherapist.
 ```
 ## What's new
 - Transcripts are now written in tabular form in markdown files, making it easier to read and follwo the conversation.
+- Added a few more personas to play with
 
 ## Outlook
 There will be more to come. But for now I will concentrate on the initial setup.
 
 #### Version and last edited
-This is version v0.1.3 (build: 10) by rheiger@icloud.com on 2024-08-18 19:42:22
+This is version v0.1.4 (build: 11) by rheiger@icloud.com on 2024-08-18 22:27:20
