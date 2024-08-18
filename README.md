@@ -21,3 +21,6 @@ The proxy script will be `llm-proxy.py`
 
 ## Outlook
 There will be more to come. But for now I will concentrate on the initial setup.
+
+#### Version and last edited
+This is version v0.0.1 (build: 2) by rheiger@icloud.com on 2024-08-18 16:41:12
