@@ -3,5 +3,4 @@ model: "local-model"
 temperature: 0.7
 max_tokens: 2048
 system_prompt: "You are a helpful AI assistant."
-host: "127.0.0.1"
-telnet_port: 18888
+log_level: "INFO"

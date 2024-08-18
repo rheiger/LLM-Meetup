@@ -22,10 +22,6 @@ top_p: 1.0
 # System prompt (can be overridden by command-line argument)
 system_prompt: "You are Claude, an AI assistant created by Anthropic."
 
-# TCP Server settings
-host: "127.0.0.1"
-port: 18888
-
 # Logging
 log_level: "INFO"
 

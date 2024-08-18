@@ -19,8 +19,23 @@ Initially there will be one script for each LLM provider:
 
 The proxy script will be `llm-proxy.py`
 
+## Installaion
+This is pretty simple to install. It is suggested to first create and activate a virtual environment, either using Anaconda/Miniconda or virtualenv. Then run `pip install -r requirements.txt` to install all required packages.
+
+## Usage
+Start the llm-proxy.py script first, then start two llmm-agents.py scripts. The proxy will listen on port 18888 and 19999 for new connections. The agents will connect to the proxy on port 18888 and 19999. The agents will connect to the proxy on port 18888 and 19999. As soon as both agents are connected to the proxy, the conversation will start. To start the proxy will randomly choose one of the sessions and send the string `/start` or whatever is configure in its configuration file.
+
+### Personas
+To give you a kick start there are some example personas in the `personas` directory that you can use by specifying them like this:
+```
+python llm_proxy.py --mirror # This will mirror the conversation to the console. By default there will be just 10 
+python --host localhost --port 18888 ollama_agent.py personas/youngsheldon.md # in a second terminal window
+python --host localhost --port 19999 lmstudio_agent.py personas/psychotherapist.md # in a in a third terminal window
+
+```
+
 ## Outlook
 There will be more to come. But for now I will concentrate on the initial setup.
 
 #### Version and last edited
-This is version v0.0.6 (build: 6) by rheiger@icloud.com on 2024-08-18 17:10:22
+This is version v0.0.7 (build: 7) by rheiger@icloud.com on 2024-08-18 17:49:32
