@@ -12,7 +12,7 @@ There will be further files describing different personas for the conversation e
 
 ## Initialy supported AI endpoints
 Initially there will be one script for each LLM provider:
-- OpenAI served by `openai_gaent.py``
+- OpenAI served by `openai_gaent.py`
 - Anthropic served by `anthropic_agent.py`
 - Ollama served by `ollama_agent.py`
 - LM Studio served by `lmstudio_agent.py`
@@ -40,4 +40,4 @@ python --host localhost --port 19999 lmstudio_agent.py personas/psychotherapist.
 There will be more to come. But for now I will concentrate on the initial setup.
 
 #### Version and last edited
-This is version v0.1.2 (build: 9) by rheiger@icloud.com on 2024-08-18 19:41:29
+This is version v0.1.3 (build: 10) by rheiger@icloud.com on 2024-08-18 19:42:22
