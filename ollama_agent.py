@@ -3,19 +3,26 @@ import yaml
 from typing import Dict, Any, List
 import socket
 import ollama
+from typing import Tuple
 
 def load_config(config_file: str) -> Dict[str, Any]:
     """Load configuration from a YAML file."""
     with open(config_file, 'r') as f:
         return yaml.safe_load(f)
 
-def load_system_prompt(prompt_file: str) -> str:
-    """Load system prompt from a file."""
-    with open(prompt_file, 'r') as f:
-        return f.read()
 
-def handle_client(s: socket.socket, ollama_client: ollama.Client, config: Dict[str, Any], system_prompt: str) -> None:
+def load_system_prompt(prompt_file: str) -> Tuple[str, str]:
+    """Load system prompt from a file and extract persona name."""
+    with open(prompt_file, 'r') as f:
+        content = f.read()
+        first_line = content.split('\n')[0]
+        persona_name = first_line.split(':')[-1].strip()
+        return content, persona_name
+
+def handle_client(s: socket.socket, ollama_client: ollama.Client, config: Dict[str, Any], system_prompt: str, persona_name: str) -> None:
     """Handle client connections and process requests."""
+    # Send persona name to proxy
+    s.sendall(f"/iam: {persona_name}\n".encode('utf-8'))
     chat_history: List[Dict[str, str]] = [{"role": "system", "content": system_prompt}]
     while True:
         try:
@@ -56,7 +63,7 @@ def main():
     args = parser.parse_args()
 
     config = load_config(args.config)
-    system_prompt = load_system_prompt(args.prompt_file)
+    system_prompt, persona_name = load_system_prompt(args.prompt_file)
 
     ollama_client = ollama.Client(host=config.get('host', 'http://localhost:11434'))
     
@@ -64,7 +71,7 @@ def main():
         try:
             s.connect((args.host, args.port))
             print(f"Connected to {args.host}:{args.port}")
-            handle_client(s, ollama_client, config, system_prompt)
+            handle_client(s, ollama_client, config, system_prompt, persona_name)
         except socket.error as e:
             print(f"Socket error: {e}")
 

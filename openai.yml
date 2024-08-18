@@ -1,8 +1,9 @@
 # OpenAI Configuration
 
 # Model selection
-model: gpt-4o
+model: gpt-4o-mini
 # Available models:
+# model: gpt-4o
 # model: gpt-4-turbo-preview
 # - gpt-4-turbo-preview (most capable, latest model)
 # - gpt-4-0125-preview

@@ -5,17 +5,24 @@ import socket
 import openai
 from dotenv import load_dotenv
 import os
+from typing import Tuple
 
 def load_config(config_file: str) -> Dict[str, Any]:
     with open(config_file, 'r') as f:
         return yaml.safe_load(f)
 
-def load_system_prompt(prompt_file: str) -> str:
+def load_system_prompt(prompt_file: str) -> Tuple[str, str]:
     with open(prompt_file, 'r') as f:
-        return f.read()
+        content = f.read()
+        first_line = content.split('\n')[0]
+        persona_name = first_line.split(':')[-1].strip()
+        return content, persona_name
 
-def handle_client(s: socket.socket, openai_client: openai.Client, config: Dict[str, Any], system_prompt: str) -> None:
-     while True:
+def handle_client(s: socket.socket, openai_client: openai.Client, config: Dict[str, Any], system_prompt: str, persona_name: str) -> None:
+    # Send persona name to proxy
+    s.sendall(f"/iam: {persona_name}\n".encode('utf-8'))
+
+    while True:
         try:
             data = s.recv(8192).decode('utf-8').strip()
             print(f"Received: '{data}'")
@@ -47,7 +54,7 @@ def main():
     args = parser.parse_args()
 
     config = load_config(args.config)
-    system_prompt = load_system_prompt(args.prompt_file)
+    system_prompt, persona_name = load_system_prompt(args.prompt_file)
 
     load_dotenv()  # This will load variables from a .env file if it exists
     api_key = os.getenv("OPENAI_API_KEY")
@@ -60,7 +67,7 @@ def main():
         try:
             s.connect((args.host, args.port))
             print(f"Connected to {args.host}:{args.port}")
-            handle_client(s, openai_client, config, system_prompt)
+            handle_client(s, openai_client, config, system_prompt, persona_name)
         except socket.error as e:
             print(f"Socket error: {e}")
 

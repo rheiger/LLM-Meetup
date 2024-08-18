@@ -10,6 +10,16 @@ import yaml
 import time
 
 def handle_client(client_socket, partner_socket, hello_message=None, transcript_file=None, session_name=None, mirror_stdout=False, max_messages=0, logger=None):
+    persona_name = None
+    
+    # Wait for the /iam message
+    while not persona_name:
+        data = client_socket.recv(4096).decode('utf-8').strip()
+        if data.startswith('/iam:'):
+            persona_name = data.split(':')[1].strip()
+            logger.info(f"Received persona name: {persona_name}")
+            break
+    
     if hello_message:
         client_socket.send(hello_message.encode() + b'\n')
         logger.info(f"Sent hello message: {hello_message} to {client_socket.getpeername()}")
@@ -25,7 +35,7 @@ def handle_client(client_socket, partner_socket, hello_message=None, transcript_
             if transcript_file:
                 lines = data.decode('utf-8').strip()
                 lines = re.sub(r'\n+', '\n', lines)
-                transcript_content = f"{session_name}:\n{lines}\n----------\n"
+                transcript_content = f"{persona_name}:\n{lines}\n----------\n"
                 transcript_file.write(transcript_content)
                 transcript_file.flush()
                 if mirror_stdout:
@@ -37,6 +47,7 @@ def handle_client(client_socket, partner_socket, hello_message=None, transcript_
                 break
         except:
             break
+
     if(hello_message):
         client_socket.send(b'/end\n')
         partner_socket.send(b'/end\n')
@@ -82,14 +93,14 @@ def start_proxy(config, mirror_stdout, max_messages, logger):
             with open(transcript_filename, 'w', encoding='utf-8') as transcript_file:
                 if hello:
                     if random.choice([True, False]):
-                        t1 = threading.Thread(target=handle_client, args=(client1, client2, hello, transcript_file, "Session1", mirror_stdout, max_messages, logger))
-                        t2 = threading.Thread(target=handle_client, args=(client2, client1, None, transcript_file, "Session2", mirror_stdout, max_messages, logger))
+                        t1 = threading.Thread(target=handle_client, args=(client1, client2, hello, transcript_file, None, mirror_stdout, max_messages, logger))
+                        t2 = threading.Thread(target=handle_client, args=(client2, client1, None, transcript_file, None, mirror_stdout, max_messages, logger))
                     else:
-                        t1 = threading.Thread(target=handle_client, args=(client1, client2, None, transcript_file, "Session1", mirror_stdout, max_messages, logger))
-                        t2 = threading.Thread(target=handle_client, args=(client2, client1, hello, transcript_file, "Session2", mirror_stdout, max_messages, logger))
+                        t1 = threading.Thread(target=handle_client, args=(client1, client2, None, transcript_file, None, mirror_stdout, max_messages, logger))
+                        t2 = threading.Thread(target=handle_client, args=(client2, client1, hello, transcript_file, None, mirror_stdout, max_messages, logger))
                 else:
-                    t1 = threading.Thread(target=handle_client, args=(client1, client2, None, transcript_file, "Session1", mirror_stdout, max_messages, logger))
-                    t2 = threading.Thread(target=handle_client, args=(client2, client1, None, transcript_file, "Session2", mirror_stdout, max_messages, logger))
+                    t1 = threading.Thread(target=handle_client, args=(client1, client2, None, transcript_file, None, mirror_stdout, max_messages, logger))
+                    t2 = threading.Thread(target=handle_client, args=(client2, client1, None, transcript_file, None, mirror_stdout, max_messages, logger))
 
                 t1.start()
                 t2.start()
