@@ -26,12 +26,17 @@ def handle_client(s: socket.socket, config: Dict[str, Any], system_prompt: str, 
 
     while True:
         try:
-            data = s.recv(8192).decode('utf-8').strip()
+            max_bytes = config['max_tokens'] * 6 if 'max_tokens' in config else 32768 # Estimate 6 bytes per character (safe for UTF-8)
+            data = s.recv(max_bytes).decode('utf-8').strip()
             print(f"Received: '{data}'")
             if not data:
                 break
-            if data.lower() in {"exit", "quit", "bye"}:
-                return
+            if data.lower() == "/end":
+                if s.fileno() != -1:
+                    s.sendall("/end".encode('utf-8'))
+                break
+            if any(data.lower().startswith(cmd) for cmd in {"/stop", "/quit", "/exit"}):
+                break
 
             chat_history.append({"role": "user", "content": data})
             

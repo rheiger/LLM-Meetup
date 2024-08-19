@@ -34,7 +34,7 @@ def handle_client(client_socket, partner_socket, hello_message=None, transcript_
     
     return persona_name
 
-def start_proxy(config, mirror_stdout, max_messages, logger):
+def start_proxy(config, mirror_stdout, max_messages, logger, no_transcript):
     port = config['proxy']['port']
     host = config['proxy']['host']
     hello = config['proxy'].get('hello', '')
@@ -70,11 +70,12 @@ def start_proxy(config, mirror_stdout, max_messages, logger):
             persona1 = handle_client(client1, client2, hello if send_hello_to_first else None, None, None, mirror_stdout, max_messages, logger)
             persona2 = handle_client(client2, client1, hello if not send_hello_to_first else None, None, None, mirror_stdout, max_messages, logger)
 
-            safe_persona1 = sanitize_filename(persona1)
-            safe_persona2 = sanitize_filename(persona2)
-            transcript_filename = f'transcripts/transcript_{iso_date}_{safe_persona1}---{safe_persona2}.md'
-            
-            with open(transcript_filename, 'w', encoding='utf-8') as transcript_file:
+            if not no_transcript:
+                safe_persona1 = sanitize_filename(persona1)
+                safe_persona2 = sanitize_filename(persona2)
+                transcript_filename = f'transcripts/transcript_{iso_date}_{safe_persona1}---{safe_persona2}.md'
+                
+                transcript_file = open(transcript_filename, 'w', encoding='utf-8')
                 transcript_file.write(f"| Message | Delta (s) | {persona1} | {persona2} |\n")
                 transcript_file.write("|---------|-----------|")
                 transcript_file.write("-" * len(persona1))
@@ -82,62 +83,72 @@ def start_proxy(config, mirror_stdout, max_messages, logger):
                 transcript_file.write("-" * len(persona2))
                 transcript_file.write("|\n")
 
-                message_count = 0
-                last_time = datetime.datetime.now()
+            message_count = 0
+            last_time = datetime.datetime.now()
 
-                while True:
-                    ready_sockets, _, _ = select.select([client1, client2], [], [], 1.0)
-                    
-                    if not ready_sockets:
-                        continue
+            while True:
+                ready_sockets, _, _ = select.select([client1, client2], [], [], 1.0)
+                
+                if not ready_sockets:
+                    continue
 
-                    for ready_socket in ready_sockets:
-                        try:
-                            data = ready_socket.recv(4096)
-                            if not data:
-                                logger.warning(f"Client {ready_socket.getpeername()} disconnected")
-                                raise Exception("Client disconnected")
+                for ready_socket in ready_sockets:
+                    try:
+                        data = ready_socket.recv(4096)
+                        if not data:
+                            logger.warning(f"Client {ready_socket.getpeername()} disconnected")
+                            raise Exception("Client disconnected")
 
-                            current_time = datetime.datetime.now()
-                            delta = int((current_time - last_time).total_seconds())
-                            last_time = current_time
+                        current_time = datetime.datetime.now()
+                        delta = int((current_time - last_time).total_seconds())
+                        last_time = current_time
 
-                            message = data.decode('utf-8').strip()
-                            message = re.sub(r'\n+', ' ', message)
+                        message = data.decode('utf-8').strip()
+                        message = re.sub(r'\n+', ' ', message)
 
-                            if ready_socket == client1:
+                        if ready_socket == client1:
+                            if not no_transcript:
                                 transcript_file.write(f"| {message_count} | {delta} | {message} | |\n")
-                                client2.send(data)
-                            else:
+                            client2.send(data)
+                        else:
+                            if not no_transcript:
                                 transcript_file.write(f"| {message_count} | {delta} | | {message} |\n")
-                                client1.send(data)
+                            client1.send(data)
 
+                        if not no_transcript:
                             transcript_file.flush()
-                            if mirror_stdout:
-                                print(f"({message_count}) Delta: {delta}s, {persona1 if ready_socket == client1 else persona2}: {message}")
-                            
-                            message_count += 1
-                            if max_messages > 0 and message_count >= max_messages:
-                                logger.info(f"Reached max messages: {max_messages}")
-                                raise Exception("Max messages reached")
+                        if mirror_stdout:
+                            print(f"({message_count}) Delta: {delta}s, {persona1 if ready_socket == client1 else persona2}: {message}")
+                        
+                        message_count += 1
+                        if max_messages > 0 and message_count >= max_messages:
+                            logger.info(f"Reached max messages: {max_messages}")
+                            raise Exception("Max messages reached")
 
-                        except Exception as e:
-                            logger.debug(f"Error handling client: {e}")
-                            raise
+                    except Exception as e:
+                        logger.debug(f"Error handling client: {e}")
+                        raise
 
         except Exception as e:
             logger.exception(f"Connection ended: {e}")
 
         finally:
             if client1:
+                client1.send(b'/stop\n')
+                logger.info(f"Client1 {addr1[0]}:{addr1[1]} sent: /stop")
                 client1.close()
             if client2:
+                client2.send(b'/stop\n')
+                logger.info(f"Client2 {addr2[0]}:{addr2[1]} sent: /stop")
                 client2.close()
             if transcript_file:
                 transcript_file.close()
             server.close()
             
-        logger.info(f"Conversation ended. Transcript saved to {transcript_filename}")
+        if not no_transcript:
+            logger.info(f"Conversation ended. Transcript saved to {transcript_filename}")
+        else:
+            logger.info("Conversation ended. No transcript saved.")
         time.sleep(1)
 
 if __name__ == "__main__":
@@ -147,8 +158,10 @@ if __name__ == "__main__":
     parser.add_argument('-v', '--verbose', action='store_true', help='Enable verbose logging')
     parser.add_argument('-l', '--logfile', help='Specify a log file')
     parser.add_argument('-c', '--config', default='config/llm_proxy_config.yml', help='Specify a config file')
-    parser.add_argument('--host', default='127.0.0.1', help='Specify the host')
-    parser.add_argument('--port', type=int, default=18888, help='Specify the port')
+    parser.add_argument('-H','--host', default='127.0.0.1', help='Specify the host')
+    parser.add_argument('-p','--port', type=int, default=18888, help='Specify the port')
+    parser.add_argument('-q','--quiet', action='store_true', help='Enable quiet mode with minimal logging')
+    parser.add_argument('-n','--no-transcript', action='store_true', help='Omit writing a transcript file')
     args = parser.parse_args()
 
     try:
@@ -163,8 +176,14 @@ if __name__ == "__main__":
     config['proxy']['logfile'] = args.logfile
     config['proxy']['host'] = args.host
     config['proxy']['port'] = args.port
+    config['proxy']['no_transcript'] = args.no_transcript
 
-    log_level = logging.DEBUG if config['proxy'].get('verbose', False) else logging.INFO
+    if args.quiet:
+        log_level = logging.WARNING
+    elif args.verbose:
+        log_level = logging.DEBUG
+    else:
+        log_level = logging.INFO
     log_format = '%(asctime)s - %(name)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s'
     if config['proxy'].get('logfile'):
         logging.basicConfig(filename=config['proxy']['logfile'], level=log_level, format=log_format)
@@ -172,4 +191,4 @@ if __name__ == "__main__":
         logging.basicConfig(level=log_level, format=log_format)
     logger = logging.getLogger('tcp_proxy')
 
-    start_proxy(config, config['proxy'].get('mirror', False), config['proxy'].get('max_messages', 10), logger)
+    start_proxy(config, config['proxy'].get('mirror', False), config['proxy'].get('max_messages', 10), logger, config['proxy'].get('no_transcript', False))

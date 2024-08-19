@@ -1,5 +1,5 @@
 Agent:
-  service: openai  # Can be 'openai', 'anthropic', 'ollama', or 'lmstudio'
+  service: openai #ollama  # Can be 'openai', 'anthropic', 'ollama', or 'lmstudio'
 
 OpenAI:
   model: gpt-4

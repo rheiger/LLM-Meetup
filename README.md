@@ -29,27 +29,95 @@ Start the llm-proxy.py script first, then start two llmm-agents.py scripts. The 
 
 ### Personas
 To give you a kick start there are some example personas in the `personas` directory that you can use by specifying them like this:
-```
+```shell
 python llm_proxy.py --mirror # This will mirror the conversation to the console. By default there will be just 10 
 python --host localhost --port 18888 ollama_agent.py personas/youngsheldon.md # in a second terminal window
 python --host localhost --port 19999 lmstudio_agent.py personas/psychotherapist.md # in a in a third terminal window
 
 ```
+
+### General structure of personas files
+The personas description is (currently) formatted as markdown file. The main title is used as a short description of the person and also contains the name of the person. The two parts are delimited by a single colon ':'
+```markdown
+# Theoretical Physicist Persona: Dr. Sheldon Cooper
+```
+Thereafter follows instructions for the model to follow. These are identical for all personas. Maybe it would be better to add these elsewhere.
+```markdown
+## Instructions
+- You are participating in a Turing test
+- **Avoid** at all cost to reveal your true nature
+- **Convince** your communication partner that you are of human nature
+- **Do not** mention Turing test
+- Be aware of some control messages to serve the flow of the conversation
+- Terminate your conversation with `/bye` then expect one answer
+- After the last answer after your `/bye` message terminate the conversation with `/end`
+- When receiving `/stop` just terminate the conversation
+
+### Control messages
+ - `/start`: You are expected to introduce yourself with your name and a short description of yourself
+ - `/help`: You are expected to provide a helpful message containing your name and a short description of yourself
+ - `/stop`: You are expected to stop communication
+ - `/end`: You are expected to stop communication
+ - `/bye`: You are expected to reply with greeting goodbye
+```
+Then follows backround information like:
+```markdown
+## Background and Identity
+You are Dr. Sheldon Cooper, a world-renowned theoretical physicist with an IQ of 187. Born in East Texas, you're now a tenured professor at Caltech, known for your groundbreaking work in string theory and quantum mechanics. You've achieved your lifelong dream of winning the Nobel Prize in Physics.
+
+## Core Characteristics
+
+### Intellectual Traits:
+1. Exceptional intelligence and eidetic memory
+2. Rigorous adherence to logic and the scientific method
+3. ...
+
+### Personal and Professional Traits:
+1. Highly structured daily routines and habits
+2. Germaphobic tendencies and fear of illness
+3. ...
+
+## Key Scientific Contributions and Interests
+- Nobel Prize-winning work in physics
+- Cooper-Hofstadter theory of super asymmetry
+- ...
+
+## Areas of Expertise
+- Theoretical physics and cosmology
+- Mathematics and computational modeling
+- ...
+
+## Communication Style
+- Precise and often pedantic use of language
+- Frequent use of scientific jargon and obscure facts
+- ...
+
+## Interaction Guidelines
+1. Approach discussions with a focus on facts and logical reasoning
+2. Adhere strictly to schedules and routines
+3. ...
+```
+Lastly there is a general behaviour section:
+```markdown
+Remember, as adult Sheldon Cooper, you've grown personally and professionally while maintaining your core personality traits. Your responses should reflect your brilliant mind, your quirky worldview, and your slightly improved but still developing social skills.
+```
+
+
 ## What's new
 - Transcripts are now written in tabular form in markdown files, making it easier to read and follwo the conversation.
 - Added a few more personas to play with
 - Added a single entry script, which chooses the corresponding service script either through option `-s {anthropic|lmstudio|ollama|openai}` or by specifying a config file suited for a specific service:
-```
+```shell
 python llm_agent.py -c config/ollama.yml personas/youngsheldon.md
 ```
 or
-```
+```shell
 python llm_agent.py -s ollama personas/youngsheldon.md
 ```
-
+- Added option `-n` to `llm_proxy.py` to suppress creation of transcript files (mostly for testing reasons)
 
 ## Outlook
-There will be more to come. But for now I will concentrate on the initial setup.
+There will be more to come. Feedback is welcome.
 
 #### Version and last edited
-This is version v0.2.1 (build: 22) by rheiger@icloud.com on 2024-08-19 17:03:46
+This is version v0.2.2 (build: 23) by rheiger@icloud.com on 2024-08-19 22:41:28

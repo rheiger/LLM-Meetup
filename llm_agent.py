@@ -20,7 +20,10 @@ def main():
     args, unknown = parser.parse_known_args()
 
     config = load_config(args.config)
-    
+
+    if args.service and args.config == "config/agent.yml":
+        args.config = (f"config/{args.service}.yml")
+
     if not args.service:
         args.service = config.get('Agent', {}).get('service')
     
@@ -31,8 +34,7 @@ def main():
     agent_module = importlib.import_module(f"{args.service}_agent")
 
     # Prepare arguments for the agent
-    agent_args = [args.prompt_file, "-c", f"config/{args.service}.yml", "-H", args.host, "-p", str(args.port)] + unknown
-
+    agent_args = [args.prompt_file, "-c", args.config, "-H", args.host, "-p", str(args.port)] + unknown
     # Run the agent's main function
     sys.argv = [sys.argv[0]] + agent_args
     agent_module.main()
