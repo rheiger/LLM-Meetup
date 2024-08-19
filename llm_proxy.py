@@ -9,7 +9,6 @@ import logging
 import yaml
 import time
 import select
-# from datetime import datetime
 
 def sanitize_filename(name):
     # Remove any characters that aren't alphanumeric, underscore, or hyphen
@@ -121,15 +120,16 @@ def start_proxy(config, mirror_stdout, max_messages, logger):
                             
                             message_count += 1
                             if max_messages > 0 and message_count >= max_messages:
-                                logger.warning(f"Reached max messages: {max_messages}")
+                                logger.info(f"Reached max messages: {max_messages}")
                                 raise Exception("Max messages reached")
 
                         except Exception as e:
-                            logger.error(f"Error handling client: {e}")
+                            logger.debug(f"Error handling client: {e}")
                             raise
 
         except Exception as e:
-            logger.error(f"Connection ended: {e}")
+            if "Max messages reached" not in str(e):
+                logger.exception(f"Connection ended: {e}")
 
         finally:
             client1.close()
@@ -167,7 +167,7 @@ if __name__ == "__main__":
     config['proxy']['port2'] = args.port2
 
     log_level = logging.DEBUG if config['proxy'].get('verbose', False) else logging.INFO
-    log_format = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    log_format = '%(asctime)s - %(name)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s'
     if config['proxy'].get('logfile'):
         logging.basicConfig(filename=config['proxy']['logfile'], level=log_level, format=log_format)
     else:

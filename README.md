@@ -41,4 +41,4 @@ python --host localhost --port 19999 lmstudio_agent.py personas/psychotherapist.
 There will be more to come. But for now I will concentrate on the initial setup.
 
 #### Version and last edited
-This is version v0.1.5 (build: 12) by rheiger@icloud.com on 2024-08-19 13:57:52
+This is version v0.1.6 (build: 13) by rheiger@icloud.com on 2024-08-19 15:55:41
