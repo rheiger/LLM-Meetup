@@ -35,40 +35,34 @@ def handle_client(client_socket, partner_socket, hello_message=None, transcript_
     return persona_name
 
 def start_proxy(config, mirror_stdout, max_messages, logger):
-    port1 = config['proxy']['port1']
-    port2 = config['proxy']['port2']
+    port = config['proxy']['port']
     host = config['proxy']['host']
     hello = config['proxy'].get('hello', '')
     
     while True:
-        server1 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        server2 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
-        server1.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        server2.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
         try:
-            server1.bind((host, port1))
-            server2.bind((host, port2))
+            server.bind((host, port))
         except socket.error as e:
             logger.error(f"Binding failed: {e}")
             sys.exit()
 
-        server1.listen(1)
-        server2.listen(1)
+        server.listen(2)
 
-        logger.info(f"Proxy listening on {host}:{port1} and {host}:{port2}")
+        logger.info(f"Proxy listening on {host}:{port}")
 
         try:
-            client1, addr1 = server1.accept()
-            logger.info(f"Connection from {addr1[0]}:{addr1[1]} on port {port1}")
+            client1, addr1 = server.accept()
+            logger.info(f"Connection from {addr1[0]}:{addr1[1]}")
 
-            client2, addr2 = server2.accept()
-            logger.info(f"Connection from {addr2[0]}:{addr2[1]} on port {port2}")
+            client2, addr2 = server.accept()
+            logger.info(f"Connection from {addr2[0]}:{addr2[1]}")
 
             iso_date = datetime.datetime.now().isoformat()
             
-            send_hello_to_first = random.choice([True, False])
+            send_hello_to_first = True # Alternatively use False or random.choice([True, False])
             persona1 = handle_client(client1, client2, hello if send_hello_to_first else None, None, None, mirror_stdout, max_messages, logger)
             persona2 = handle_client(client2, client1, hello if not send_hello_to_first else None, None, None, mirror_stdout, max_messages, logger)
 
@@ -134,8 +128,7 @@ def start_proxy(config, mirror_stdout, max_messages, logger):
         finally:
             client1.close()
             client2.close()
-            server1.close()
-            server2.close()
+            server.close()
             
         logger.info(f"Conversation ended. Transcript saved to {transcript_filename}")
         time.sleep(1)
@@ -148,8 +141,7 @@ if __name__ == "__main__":
     parser.add_argument('-l', '--logfile', help='Specify a log file')
     parser.add_argument('-c', '--config', default='config/llm_proxy_config.yml', help='Specify a config file')
     parser.add_argument('--host', default='127.0.0.1', help='Specify the host')
-    parser.add_argument('--port1', type=int, default=18888, help='Specify port1')
-    parser.add_argument('--port2', type=int, default=19999, help='Specify port2')
+    parser.add_argument('--port', type=int, default=18888, help='Specify the port')
     args = parser.parse_args()
 
     try:
@@ -163,8 +155,7 @@ if __name__ == "__main__":
     config['proxy']['verbose'] = args.verbose
     config['proxy']['logfile'] = args.logfile
     config['proxy']['host'] = args.host
-    config['proxy']['port1'] = args.port1
-    config['proxy']['port2'] = args.port2
+    config['proxy']['port'] = args.port
 
     log_level = logging.DEBUG if config['proxy'].get('verbose', False) else logging.INFO
     log_format = '%(asctime)s - %(name)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s'
