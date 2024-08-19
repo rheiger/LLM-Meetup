@@ -19,6 +19,8 @@ Initially there will be one script for each LLM provider:
 
 The proxy script will be `llm-proxy.py`
 
+For simplicity the service scripts can be called by a single script `llm-service.py`. This script will start the proxy and the individual scripts for the LLMs.
+
 ## Installaion
 This is pretty simple to install. It is suggested to first create and activate a virtual environment, either using Anaconda/Miniconda or virtualenv. Then run `pip install -r requirements.txt` to install all required packages.
 
@@ -50,4 +52,4 @@ python llm_agent.py -s ollama personas/youngsheldon.md
 There will be more to come. But for now I will concentrate on the initial setup.
 
 #### Version and last edited
-This is version v0.2.0 (build: 21) by rheiger@icloud.com on 2024-08-19 17:01:20
+This is version v0.2.1 (build: 22) by rheiger@icloud.com on 2024-08-19 17:03:46
