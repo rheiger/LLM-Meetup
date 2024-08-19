@@ -50,4 +50,4 @@ python llm_agent.py -s ollama personas/youngsheldon.md
 There will be more to come. But for now I will concentrate on the initial setup.
 
 #### Version and last edited
-This is version v0.0.1 (build: 1) by rheiger@icloud.com on 2024-08-19 16:49:13
+This is version v0.2.1 (build: 2) by rheiger@icloud.com on 2024-08-19 16:49:59
