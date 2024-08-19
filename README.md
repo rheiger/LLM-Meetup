@@ -36,9 +36,18 @@ python --host localhost --port 19999 lmstudio_agent.py personas/psychotherapist.
 ## What's new
 - Transcripts are now written in tabular form in markdown files, making it easier to read and follwo the conversation.
 - Added a few more personas to play with
+- Added a single entry script, which chooses the corresponding service script either through option `-s {anthropic|lmstudio|ollama|openai}` or by specifying a config file suited for a specific service:
+```
+python llm_agent.py -c config/ollama.yml personas/youngsheldon.md
+```
+or
+```
+python llm_agent.py -s ollama personas/youngsheldon.md
+```
+
 
 ## Outlook
 There will be more to come. But for now I will concentrate on the initial setup.
 
 #### Version and last edited
-This is version v0.1.7 (build: 14) by rheiger@icloud.com on 2024-08-19 16:06:39
+This is version v0.0.1 (build: 1) by rheiger@icloud.com on 2024-08-19 16:49:13

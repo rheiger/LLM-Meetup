@@ -1,4 +1,6 @@
 # OpenAI Configuration
+Agent:
+  service: openai
 
 # Model selection
 model: gpt-4o-mini

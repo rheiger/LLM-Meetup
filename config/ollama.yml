@@ -1,4 +1,6 @@
 # Ollama configuration
+Agent:
+  service: ollama
 
 # Model to use for chat
 model: dolphin-llama3

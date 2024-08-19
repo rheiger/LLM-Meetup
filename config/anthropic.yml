@@ -1,4 +1,6 @@
 # Anthropic Configuration
+Agent:
+  service: anthropic
 
 # Model selection
 model: claude-3-sonnet-20240229 

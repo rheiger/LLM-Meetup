@@ -1,0 +1,24 @@
+Agent:
+  service: openai  # Can be 'openai', 'anthropic', 'ollama', or 'lmstudio'
+
+OpenAI:
+  model: gpt-4
+  max_tokens: 1000
+  temperature: 0.7
+
+Anthropic:
+  model: claude-2
+  max_tokens: 1000
+  temperature: 0.7
+
+Ollama:
+  model: llama2
+  temperature: 0.7
+  top_p: 1.0
+  top_k: 40
+
+LMStudio:
+  model: mistral-7b-instruct-v0.1.Q4_K_M
+  lmstudio_api_base: http://localhost:1234/v1
+  max_tokens: 1000
+  temperature: 0.7

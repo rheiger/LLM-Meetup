@@ -53,6 +53,10 @@ def start_proxy(config, mirror_stdout, max_messages, logger):
 
         logger.info(f"Proxy listening on {host}:{port}")
 
+        client1 = None
+        client2 = None
+        transcript_file = None
+
         try:
             client1, addr1 = server.accept()
             logger.info(f"Connection from {addr1[0]}:{addr1[1]}")
@@ -122,12 +126,15 @@ def start_proxy(config, mirror_stdout, max_messages, logger):
                             raise
 
         except Exception as e:
-            if "Max messages reached" not in str(e):
-                logger.exception(f"Connection ended: {e}")
+            logger.exception(f"Connection ended: {e}")
 
         finally:
-            client1.close()
-            client2.close()
+            if client1:
+                client1.close()
+            if client2:
+                client2.close()
+            if transcript_file:
+                transcript_file.close()
             server.close()
             
         logger.info(f"Conversation ended. Transcript saved to {transcript_filename}")
