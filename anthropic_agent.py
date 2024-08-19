@@ -20,7 +20,7 @@ def load_system_prompt(prompt_file: str) -> Tuple[str, str]:
 
 def handle_client(s: socket.socket, anthropic_client: Anthropic, config: Dict[str, Any], system_prompt: str, persona_name: str) -> None:
     # Send persona name to proxy
-    s.sendall(f"/iam: {persona_name} (Anthropic)\n".encode('utf-8'))
+    s.sendall(f"/iam: {persona_name}.{config['model']}\n".encode('utf-8'))
 
     while True:
         try:
@@ -48,7 +48,7 @@ def handle_client(s: socket.socket, anthropic_client: Anthropic, config: Dict[st
 def main():
     parser = argparse.ArgumentParser(description="Anthropic Claude TCP Server")
     parser.add_argument("prompt_file", help="Markdown file containing the system prompt")
-    parser.add_argument("-c", "--config", default="anthropic.yml", help="YAML configuration file")
+    parser.add_argument("-c", "--config", default="config/anthropic.yml", help="YAML configuration file")
     parser.add_argument("-H", "--host", default="127.0.0.1", help="TCP server host")
     parser.add_argument("-p", "--port", type=int, default=18888, help="TCP server port")
     args = parser.parse_args()

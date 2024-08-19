@@ -9,6 +9,13 @@ import logging
 import yaml
 import time
 import select
+# from datetime import datetime
+
+def sanitize_filename(name):
+    # Remove any characters that aren't alphanumeric, underscore, or hyphen
+    sanitized = re.sub(r'[^\w\-.$@,]', lambda m: '~' if m.start() > 0 else m.group(), name)    
+    # Limit to 24 characters
+    return sanitized[:24]
 
 def handle_client(client_socket, partner_socket, hello_message=None, transcript_file=None, session_name=None, mirror_stdout=False, max_messages=0, logger=None):
     persona_name = None
@@ -17,6 +24,7 @@ def handle_client(client_socket, partner_socket, hello_message=None, transcript_
     while not persona_name:
         data = client_socket.recv(4096).decode('utf-8').strip()
         if data.startswith('/iam:'):
+            logger.debug(f"Received /iam message: {data}")
             persona_name = data.split(':')[1].strip()
             logger.info(f"Received persona name: {persona_name}")
             break
@@ -60,13 +68,16 @@ def start_proxy(config, mirror_stdout, max_messages, logger):
             logger.info(f"Connection from {addr2[0]}:{addr2[1]} on port {port2}")
 
             iso_date = datetime.datetime.now().isoformat()
-            transcript_filename = f'transcript_{iso_date}_{addr1[0]}-{addr2[0]}.md'
+            
+            send_hello_to_first = random.choice([True, False])
+            persona1 = handle_client(client1, client2, hello if send_hello_to_first else None, None, None, mirror_stdout, max_messages, logger)
+            persona2 = handle_client(client2, client1, hello if not send_hello_to_first else None, None, None, mirror_stdout, max_messages, logger)
+
+            safe_persona1 = sanitize_filename(persona1)
+            safe_persona2 = sanitize_filename(persona2)
+            transcript_filename = f'transcripts/transcript_{iso_date}_{safe_persona1}---{safe_persona2}.md'
             
             with open(transcript_filename, 'w', encoding='utf-8') as transcript_file:
-                send_hello_to_first = random.choice([True, False])
-                persona1 = handle_client(client1, client2, hello if send_hello_to_first else None, transcript_file, None, mirror_stdout, max_messages, logger)
-                persona2 = handle_client(client2, client1, hello if not send_hello_to_first else None, transcript_file, None, mirror_stdout, max_messages, logger)
-
                 transcript_file.write(f"| Message | Delta (s) | {persona1} | {persona2} |\n")
                 transcript_file.write("|---------|-----------|")
                 transcript_file.write("-" * len(persona1))
@@ -135,7 +146,7 @@ if __name__ == "__main__":
     parser.add_argument('-M', '--max-messages', type=int, default=10, help='Maximum number of messages to forward (0 for unlimited)')
     parser.add_argument('-v', '--verbose', action='store_true', help='Enable verbose logging')
     parser.add_argument('-l', '--logfile', help='Specify a log file')
-    parser.add_argument('-c', '--config', default='llm_proxy_config.yml', help='Specify a config file')
+    parser.add_argument('-c', '--config', default='config/llm_proxy_config.yml', help='Specify a config file')
     parser.add_argument('--host', default='127.0.0.1', help='Specify the host')
     parser.add_argument('--port1', type=int, default=18888, help='Specify port1')
     parser.add_argument('--port2', type=int, default=19999, help='Specify port2')

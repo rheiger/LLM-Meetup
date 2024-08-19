@@ -22,7 +22,7 @@ def load_system_prompt(prompt_file: str) -> Tuple[str, str]:
 def handle_client(s: socket.socket, ollama_client: ollama.Client, config: Dict[str, Any], system_prompt: str, persona_name: str) -> None:
     """Handle client connections and process requests."""
     # Send persona name to proxy
-    s.sendall(f"/iam: {persona_name} (Ollama)\n".encode('utf-8'))
+    s.sendall(f"/iam: {persona_name}.{config['model']}\n".encode('utf-8'))
     chat_history: List[Dict[str, str]] = [{"role": "system", "content": system_prompt}]
     while True:
         try:
@@ -57,7 +57,7 @@ def handle_client(s: socket.socket, ollama_client: ollama.Client, config: Dict[s
 def main():
     parser = argparse.ArgumentParser(description="Ollama LLM TCP Server")
     parser.add_argument("prompt_file", help="Markdown file containing the system prompt")
-    parser.add_argument("-c", "--config", default="ollama.yml", help="YAML configuration file")
+    parser.add_argument("-c", "--config", default="config/ollama.yml", help="YAML configuration file")
     parser.add_argument("-H", "--host", default="127.0.0.1", help="TCP server host")
     parser.add_argument("-p", "--port", type=int, default=18888, help="TCP server port")
     args = parser.parse_args()
