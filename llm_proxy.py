@@ -34,6 +34,46 @@ def handle_client(client_socket, partner_socket, hello_message=None, transcript_
     
     return persona_name
 
+def filter_md(s: str) -> str:
+    """Escape markdown instructions from a string."""
+    # s = s.replace('*', r'\*')
+    # s = s.replace('_', r'\_')
+    s = s.replace('`', r'\`')
+    s = s.replace('#', r'\#')
+    # s = s.replace('-', r'\-')
+    s = s.replace('>', r'\>')
+    s = s.replace('+', r'\+')
+    s = s.replace('=', r'\=')
+    s = s.replace('|', r'\|')
+    # s = s.replace('[', r'\[')
+    # s = s.replace(']', r'\]')
+    # s = s.replace('(', r'\(')
+    # s = s.replace(')', r'\)')
+    # s = s.replace('!', r'\!')
+    s = s.replace('\n\n', '<br>')
+    def process_item(item):
+        item = item.strip().lstrip('0123456789.-*+[] ')
+        if item.lower().startswith('[ ]'):
+            return f'<li><input type="checkbox"> {item[3:].strip()}</li>'
+        elif item.lower().startswith('[x]'):
+            return f'<li><input type="checkbox" checked> {item[3:].strip()}</li>'
+        else:
+            return f'<li>{item}</li>'
+
+    def convert_list(match):
+        lines = match.group(0).split('\n')
+        list_type = 'ol' if re.match(r'^\d+\.', lines[0]) else 'ul'
+        items = [process_item(line) for line in lines if line.strip()]
+        return f'<{list_type}>\n' + '\n'.join(items) + f'\n</{list_type}>'
+
+    # More strict pattern to match lists
+    list_pattern = re.compile(r'(?:(?:^\d+\.|\-|\*|\+)[ \t].+\n?)+(?:\n|$)', re.MULTILINE)
+
+    # Replace lists in the text
+    converted_text = list_pattern.sub(convert_list, s)
+
+    return converted_text
+
 def start_proxy(config, mirror_stdout, max_messages, logger, no_transcript):
     port = config['proxy']['port']
     host = config['proxy']['host']
@@ -76,7 +116,7 @@ def start_proxy(config, mirror_stdout, max_messages, logger, no_transcript):
                 transcript_filename = f'transcripts/transcript_{iso_date}_{safe_persona1}---{safe_persona2}.md'
                 
                 transcript_file = open(transcript_filename, 'w', encoding='utf-8')
-                transcript_file.write(f"| Message | Delta (s) | {persona1} | {persona2} |\n")
+                transcript_file.write(f"| Message | Delta (s) | {filter_md(persona1)} | {filter_md(persona2)} |\n")
                 transcript_file.write("|---------|-----------|")
                 transcript_file.write("-" * len(persona1))
                 transcript_file.write("|")
@@ -94,7 +134,7 @@ def start_proxy(config, mirror_stdout, max_messages, logger, no_transcript):
 
                 for ready_socket in ready_sockets:
                     try:
-                        data = ready_socket.recv(4096)
+                        data = ready_socket.recv(65536)
                         if not data:
                             logger.warning(f"Client {ready_socket.getpeername()} disconnected")
                             raise Exception("Client disconnected")
@@ -104,15 +144,33 @@ def start_proxy(config, mirror_stdout, max_messages, logger, no_transcript):
                         last_time = current_time
 
                         message = data.decode('utf-8').strip()
-                        message = re.sub(r'\n+', ' ', message)
+                        # message = re.sub(r'\n+', ' ', message)
 
                         if ready_socket == client1:
                             if not no_transcript:
-                                transcript_file.write(f"| {message_count} | {delta} | {message} | |\n")
+                                if message.startswith('/truncated:'):
+                                    lb_pos = message.find('<br>')
+                                    transcript_file.write(f"| {message_count} | {delta} | _{message[:lb_pos]}_<br>{filter_md(message[lb_pos+4:])} | |\n")
+                                    logger.warning(f"Received on 1 /truncate message: {message}")
+                                    d = data.decode('utf-8')
+                                    d = d[d.find('<br>')+4:]
+                                    data = d.encode('utf-8')
+                                    # continue
+                                else:
+                                    transcript_file.write(f"| {message_count} | {delta} | {filter_md(message)} | |\n")
                             client2.send(data)
                         else:
                             if not no_transcript:
-                                transcript_file.write(f"| {message_count} | {delta} | | {message} |\n")
+                                if message.startswith('/truncated:'):
+                                    lb_pos = message.find('<br>')
+                                    transcript_file.write(f"| {message_count} | {delta} | | _{message[:lb_pos]}_<br>{filter_md(message[lb_pos+4:])} |\n")
+                                    logger.warning(f"Received on 2 /truncate message: {message}")
+                                    d = data.decode('utf-8')
+                                    d = d[d.find('<br>')+4:]
+                                    data = d.encode('utf-8')
+                                    # continue
+                                else:
+                                    transcript_file.write(f"| {message_count} | {delta} | | {filter_md(message)} |\n")
                             client1.send(data)
 
                         if not no_transcript:

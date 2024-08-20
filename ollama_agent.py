@@ -29,6 +29,8 @@ def get_byte_size(chat_history):
 
 def truncate_middle(chat_history: List[Dict[str,str]]):
     """Truncate 10% from random place around the middle of a chat history."""
+    to_remove = 0
+    start_index = 0
     logging.debug(f"chat_history has {len(chat_history)} messages")
     logging.debug(f"chat_history has {get_byte_size(chat_history)} bytes")
     logging.debug(f"chat_history[0] is {chat_history[0]}")
@@ -47,32 +49,68 @@ def truncate_middle(chat_history: List[Dict[str,str]]):
         chat_history = chat_history[:start_index] + chat_history[start_index + to_remove:]
         logging.warning(f"Truncated chat history to {len(chat_history)} messages starting at {start_index} removing {to_remove} messages")
 
-    return chat_history
+    return chat_history, start_index, to_remove
 
-def handle_client(s: socket.socket, ollama_client: ollama.Client, config: Dict[str, Any], system_prompt: str, persona_name: str) -> None:
+def filter_md(s: str) -> str:
+    """Escape markdown instructions from a string."""
+    # s = s.replace('*', r'\*')
+    # s = s.replace('_', r'\_')
+    # s = s.replace('`', r'\`')
+    # s = s.replace('#', r'\#')
+    # s = s.replace('-', r'\-')
+    # s = s.replace('>', r'\>')
+    # s = s.replace('+', r'\+')
+    # s = s.replace('=', r'\=')
+    # s = s.replace('|', r'\|')
+    # s = s.replace('[', r'\[')
+    # s = s.replace(']', r'\]')
+    # s = s.replace('(', r'\(')
+    # s = s.replace(')', r'\)')
+    # s = s.replace('!', r'\!')
+    return s
+
+def handle_client(s: socket.socket, ollama_client: ollama.Client, config: Dict[str, Any], system_prompt: str, persona_name: str, quiet: bool) -> None:
     """Handle client connections and process requests."""
     # Send persona name to proxy
     s.sendall(f"/iam: {persona_name}.{config['model']}\n".encode('utf-8'))
+
     chat_history: List[Dict[str, str]] = [{"role": "system", "content": system_prompt}]
     max_bytes = config['max_tokens'] * 30 + 1024 if 'max_tokens' in config else 32768 # Estimate 6 bytes per character (safe for UTF-8)
+    # max_bytes = 8192 # TODO: REMOVE THIS AFTER DEBUGGING
     while True:
         try:
-            data = s.recv(max_bytes).decode('utf-8').strip()
-            logging.info(f"Received: '{data}'")
+            data = s.recv(max_bytes+2048).decode('utf-8').strip()
+            logging.debug(f"Received: '{data}'")
             if not data:
+                logging.warning("Received empty data, closing connection")
                 break
-            if data.lower() == "/end":
+            if not quiet:
+                print(f"Received: '{data}'\n---")
+            if data.lower().startswith("/end") or data.lower().endswith("/end"):
+                logging.info(f"Received /end, closing connection ({data})")
                 if s.fileno() != -1:
                     s.sendall("/end".encode('utf-8'))
+                else:
+                    logging.warning("Socket is already closed, could not send /end")
                 break
-            if any(data.lower().startswith(cmd) for cmd in {"/stop", "/quit", "/exit"}):
+            if data.lower().startswith("/help") or data.lower().endswith("/help"):
+                logging.warning(f"Received /help, don't know what to do ({data})")
+            if any(data.lower().startswith(cmd) for cmd in {"/stop", "/quit", "/exit"}) or any(data.lower().endswith(cmd) for cmd in {"/stop", "/quit", "/exit"}):
+                logging.info(f"Received stop command ({data}), closing connection")
                 break
+
+            # Needed to keep context for ollama
             chat_history.append({"role": "user", "content": data})
 
             byte_size = get_byte_size(chat_history)
             if byte_size > max_bytes - 1024:
                 logging.warning(f"Chat history is too long {len(chat_history)} ({byte_size} bytes), truncating")
-                truncate_middle(chat_history)
+                chat_history, start_index, to_remove = truncate_middle(chat_history)
+                prefix = f"/truncated: {to_remove} messages starting at {start_index}<br>"
+            else:
+                logging.debug(f"Chat history is {len(chat_history)} messages ({byte_size} bytes of max {max_bytes} bytes)")
+                prefix = ""
+
             response = ollama_client.chat(
                 model=config['model'],
                 messages=chat_history,
@@ -83,14 +121,16 @@ def handle_client(s: socket.socket, ollama_client: ollama.Client, config: Dict[s
                     "top_k": config.get('top_k', 40),
                 }
             )
-            reply = response['message']['content'].encode('utf-8').strip() + b'\n'
-            context = json.dumps(response, indent=2)
-            logging.debug(f"Context: {context}")
+            reply = response['message']['content'].strip()
+            if not quiet:
+                print(f"Inferred: {reply}\n================\n")
             chat_history.append({"role": "assistant", "content": response['message']['content']})
-            logging.info(f"Reply with '{reply}'\n"
-                  f"{response['prompt_eval_count']} input tokens evaluated in {round(response['prompt_eval_duration']/1e9, 3)} seconds, "
+            logging.debug(f"{response['prompt_eval_count']} input tokens evaluated in {round(response['prompt_eval_duration']/1e9, 3)} seconds {round(1e9 * float(response['prompt_eval_count']) / response['prompt_eval_duration'], 3)} tokens/sec, "
                   f"{response['eval_count']} output tokens evaluated in {round(response['total_duration']/1e9, 3)} seconds {round(1e9 * float(response['eval_count']) / response['total_duration'], 3)} tokens/sec")
-            s.sendall(reply)
+
+            # Now send what the LLM created as reply
+            msg = f"{prefix}{filter_md(response['message']['content'])}"
+            s.sendall(msg.encode('utf-8'))
         except (socket.error, ollama.ResponseError) as e:
             logging.exception(f"Error: {e}")
             break
@@ -114,6 +154,8 @@ def main():
         log_level = logging.INFO
     logging.basicConfig(filename=args.logfile, level=log_level, format='%(asctime)s - %(name)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s')
 
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+
     config = load_config(args.config)
 
     system_prompt, persona_name = load_system_prompt(args.prompt_file)
@@ -124,7 +166,7 @@ def main():
         try:
             s.connect((args.host, args.port))
             logging.info(f"Connected to {args.host}:{args.port}")
-            handle_client(s, ollama_client, config, system_prompt, persona_name)
+            handle_client(s, ollama_client, config, system_prompt, persona_name, args.quiet)
         except socket.error as e:
             logging.exception(f"Socket error: {e}")
 

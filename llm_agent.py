@@ -15,6 +15,9 @@ def main():
     parser.add_argument("-s", "--service", choices=["lmstudio", "openai", "ollama", "anthropic"], help="Select the service to use")
     parser.add_argument("-H", "--host", default="127.0.0.1", help="TCP server host")
     parser.add_argument("-p", "--port", type=int, default=18888, help="TCP server port")
+    parser.add_argument("-l","--logfile", help="Log file path")
+    parser.add_argument("-v","--verbose", action="store_true", help="Enable verbose logging")
+    parser.add_argument("-q","--quiet", action="store_true", help="Enable quiet mode with minimal logging")
     
     # Parse known args to handle service-specific arguments
     args, unknown = parser.parse_known_args()
@@ -34,7 +37,14 @@ def main():
     agent_module = importlib.import_module(f"{args.service}_agent")
 
     # Prepare arguments for the agent
-    agent_args = [args.prompt_file, "-c", args.config, "-H", args.host, "-p", str(args.port)] + unknown
+    agent_args = [args.prompt_file, "-c", args.config, "-H", args.host, "-p", str(args.port)]
+    if args.verbose:
+        agent_args.append("-v")
+    if args.quiet:
+        agent_args.append("-q")
+    if args.logfile:
+        agent_args.extend(["-l", args.logfile])
+    agent_args.extend(unknown)
     # Run the agent's main function
     sys.argv = [sys.argv[0]] + agent_args
     agent_module.main()
