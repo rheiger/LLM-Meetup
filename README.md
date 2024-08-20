@@ -5,6 +5,9 @@ Let two LLMs with configurable personas discuss with each other
 The idea comes from remembering having read an article about an AI experiment conducted 1972 where the famous ELIZA from Joseph Weizenbaum was connected up to PARRY from Kenneth Colby. The idea was to have a conversation between two ELIZA's. Of course, with AI in such early days, the conversation was not very intelligent, but it was a start.
 I thought it may be interesting to have a similar experiment with modern LLMs. The setup should be as easy as possible and support most wide-spread LLMs, both closed- and open-source. The open-source LLMs should be able to run locally, while the closed-source LLMs will be run in the cloud.
 
+### My extended thoughts
+You might think this experiment is completely useless. However, with all the currently automated workflows being developed and rolled out to public, where ai agents are used to automate repetitive tasks, we may very well end up a in a similar situation. Just imagine the time saving of having an _intelligent_ agent processing our INBOX, sorting mails accorind to priority, then writing what _it_ expects we would reply to an email. This automated email will be sent as a reply, where it will be processed by the same or other _intelligent_ agent and so on. Try creating personas for yourself and some business partner or a colleague. Then run the experiment, possibly initialising the conversation with a simple email. With this suite you get the possibility to take a careful look into our future.
+
 ## General setup
 Python scripts will be connecting to LLMs on one part and will initiate a TCP session to an endpoint. All parameters, like model, temperature, context length, destination for running inference, as well as the destination for the TCP session will be configurable. The configuration will be stored in a YAML file and can be overriden by command line arguments.
 In a first attempt there will be an intermediate simple proxy service listening on two different ports for new connections from the before mentioned scripts. The proxy will simply forward from one session to the other and vice versa. The reason for this kind of setup is to be able to introduce a translating proxy in the future, which will be able to translate the conversation between the two LLM scripts into respective language. Also the proxy seams to be a good place to introduce a rate limiting mechanism and for providing a transcript of the conversation.
@@ -115,9 +118,10 @@ or
 python llm_agent.py -s ollama personas/youngsheldon.md
 ```
 - Added option `-n` to `llm_proxy.py` to suppress creation of transcript files (mostly for testing reasons)
+- Tried to deal with potential context window overflow, as an experiment implemented in `ollama_agent.py`. You may want to check this.
 
 ## Outlook
 There will be more to come. Feedback is welcome.
 
 #### Version and last edited
-This is version v0.2.2 (build: 23) by rheiger@icloud.com on 2024-08-19 22:41:28
+This is version v0.2.3 (build: 24) by rheiger@icloud.com on 2024-08-20 02:02:06

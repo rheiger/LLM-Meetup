@@ -5,6 +5,8 @@ import socket
 import ollama
 from typing import Tuple
 import logging
+import json 
+import random
 
 def load_config(config_file: str) -> Dict[str, Any]:
     """Load configuration from a YAML file."""
@@ -20,14 +22,41 @@ def load_system_prompt(prompt_file: str) -> Tuple[str, str]:
         persona_name = first_line.split(':')[-1].strip()
         return content, persona_name
 
+def get_byte_size(chat_history):
+    # Get the length of the byte data
+    byte_size = len(json.dumps(chat_history).encode('utf-8'))    
+    return byte_size
+
+def truncate_middle(chat_history: List[Dict[str,str]]):
+    """Truncate 10% from random place around the middle of a chat history."""
+    logging.debug(f"chat_history has {len(chat_history)} messages")
+    logging.debug(f"chat_history has {get_byte_size(chat_history)} bytes")
+    logging.debug(f"chat_history[0] is {chat_history[0]}")
+    logging.debug(f"chat_history[1] is {chat_history[1]}")
+    if len(chat_history) > 2:
+        logging.debug(f"chat_history[2] is {chat_history[2]}")
+    if len(chat_history) > 4:
+        logging.debug(f"chat_history[-1] is {chat_history[-1]}")
+    num_messages = len(chat_history)
+    to_remove = round(num_messages * 0.2)
+    if to_remove % 2 != 0:
+        to_remove += 1
+    logging.debug(f"Truncating {to_remove} messages from a random place in chat history, ensuring the last element is preserved")
+    if to_remove > 0:
+        start_index = max(2, random.randrange(2, len(chat_history) - to_remove - 1, 2))
+        chat_history = chat_history[:start_index] + chat_history[start_index + to_remove:]
+        logging.warning(f"Truncated chat history to {len(chat_history)} messages starting at {start_index} removing {to_remove} messages")
+
+    return chat_history
+
 def handle_client(s: socket.socket, ollama_client: ollama.Client, config: Dict[str, Any], system_prompt: str, persona_name: str) -> None:
     """Handle client connections and process requests."""
     # Send persona name to proxy
     s.sendall(f"/iam: {persona_name}.{config['model']}\n".encode('utf-8'))
     chat_history: List[Dict[str, str]] = [{"role": "system", "content": system_prompt}]
+    max_bytes = config['max_tokens'] * 30 + 1024 if 'max_tokens' in config else 32768 # Estimate 6 bytes per character (safe for UTF-8)
     while True:
         try:
-            max_bytes = config['max_tokens'] * 6 if 'max_tokens' in config else 32768 # Estimate 6 bytes per character (safe for UTF-8)
             data = s.recv(max_bytes).decode('utf-8').strip()
             logging.info(f"Received: '{data}'")
             if not data:
@@ -39,21 +68,28 @@ def handle_client(s: socket.socket, ollama_client: ollama.Client, config: Dict[s
             if any(data.lower().startswith(cmd) for cmd in {"/stop", "/quit", "/exit"}):
                 break
             chat_history.append({"role": "user", "content": data})
+
+            byte_size = get_byte_size(chat_history)
+            if byte_size > max_bytes - 1024:
+                logging.warning(f"Chat history is too long {len(chat_history)} ({byte_size} bytes), truncating")
+                truncate_middle(chat_history)
             response = ollama_client.chat(
                 model=config['model'],
                 messages=chat_history,
                 stream=False,
                 options={
                     "temperature": config.get('temperature', 0.7),
-                    "top_p": config.get('top_p', 1.0),
+                    "top_p": config.get('top_p', 0.9),
                     "top_k": config.get('top_k', 40),
                 }
             )
             reply = response['message']['content'].encode('utf-8').strip() + b'\n'
+            context = json.dumps(response, indent=2)
+            logging.debug(f"Context: {context}")
             chat_history.append({"role": "assistant", "content": response['message']['content']})
             logging.info(f"Reply with '{reply}'\n"
-                  f"{response['prompt_eval_count']} tokens in {round(response['prompt_eval_duration']/1e9, 2)} seconds, "
-                  f"{response['eval_count']} tokens out, total duration= {round(response['total_duration']/1e9, 2)} seconds")
+                  f"{response['prompt_eval_count']} input tokens evaluated in {round(response['prompt_eval_duration']/1e9, 3)} seconds, "
+                  f"{response['eval_count']} output tokens evaluated in {round(response['total_duration']/1e9, 3)} seconds {round(1e9 * float(response['eval_count']) / response['total_duration'], 3)} tokens/sec")
             s.sendall(reply)
         except (socket.error, ollama.ResponseError) as e:
             logging.exception(f"Error: {e}")
