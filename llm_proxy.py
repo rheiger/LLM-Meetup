@@ -14,7 +14,7 @@ def sanitize_filename(name):
     # Remove any characters that aren't alphanumeric, underscore, or hyphen
     sanitized = re.sub(r'[^\w\-.$@,]', lambda m: '~' if m.start() > 0 else m.group(), name)    
     # Limit to 24 characters
-    return sanitized[:24]
+    return sanitized[:32]
 
 def handle_client(client_socket, partner_socket, hello_message=None, transcript_file=None, session_name=None, mirror_stdout=False, max_messages=0, logger=None):
     persona_name = None
@@ -33,46 +33,6 @@ def handle_client(client_socket, partner_socket, hello_message=None, transcript_
         logger.info(f"Sent hello message: {hello_message} to {client_socket.getpeername()}")
     
     return persona_name
-
-def filter_md(s: str) -> str:
-    """Escape markdown instructions from a string."""
-    # s = s.replace('*', r'\*')
-    # s = s.replace('_', r'\_')
-    s = s.replace('`', r'\`')
-    s = s.replace('#', r'\#')
-    # s = s.replace('-', r'\-')
-    s = s.replace('>', r'\>')
-    s = s.replace('+', r'\+')
-    s = s.replace('=', r'\=')
-    s = s.replace('|', r'\|')
-    # s = s.replace('[', r'\[')
-    # s = s.replace(']', r'\]')
-    # s = s.replace('(', r'\(')
-    # s = s.replace(')', r'\)')
-    # s = s.replace('!', r'\!')
-    s = s.replace('\n\n', '<br>')
-    def process_item(item):
-        item = item.strip().lstrip('0123456789.-*+[] ')
-        if item.lower().startswith('[ ]'):
-            return f'<li><input type="checkbox"> {item[3:].strip()}</li>'
-        elif item.lower().startswith('[x]'):
-            return f'<li><input type="checkbox" checked> {item[3:].strip()}</li>'
-        else:
-            return f'<li>{item}</li>'
-
-    def convert_list(match):
-        lines = match.group(0).split('\n')
-        list_type = 'ol' if re.match(r'^\d+\.', lines[0]) else 'ul'
-        items = [process_item(line) for line in lines if line.strip()]
-        return f'<{list_type}>\n' + '\n'.join(items) + f'\n</{list_type}>'
-
-    # More strict pattern to match lists
-    list_pattern = re.compile(r'(?:(?:^\d+\.|\-|\*|\+)[ \t].+\n?)+(?:\n|$)', re.MULTILINE)
-
-    # Replace lists in the text
-    converted_text = list_pattern.sub(convert_list, s)
-
-    return converted_text
 
 def start_proxy(config, mirror_stdout, max_messages, logger, no_transcript):
     port = config['proxy']['port']
@@ -95,7 +55,8 @@ def start_proxy(config, mirror_stdout, max_messages, logger, no_transcript):
 
         client1 = None
         client2 = None
-        transcript_file = None
+        transcript_file1 = None
+        transcript_file2 = None
 
         try:
             client1, addr1 = server.accept()
@@ -113,15 +74,11 @@ def start_proxy(config, mirror_stdout, max_messages, logger, no_transcript):
             if not no_transcript:
                 safe_persona1 = sanitize_filename(persona1)
                 safe_persona2 = sanitize_filename(persona2)
-                transcript_filename = f'transcripts/transcript_{iso_date}_{safe_persona1}---{safe_persona2}.md'
+                transcript_filename1 = f'transcripts/transcript_{iso_date}_{safe_persona1}.txt'
+                transcript_filename2 = f'transcripts/transcript_{iso_date}_{safe_persona2}.txt'
                 
-                transcript_file = open(transcript_filename, 'w', encoding='utf-8')
-                transcript_file.write(f"| Message | Delta (s) | {filter_md(persona1)} | {filter_md(persona2)} |\n")
-                transcript_file.write("|---------|-----------|")
-                transcript_file.write("-" * len(persona1))
-                transcript_file.write("|")
-                transcript_file.write("-" * len(persona2))
-                transcript_file.write("|\n")
+                transcript_file1 = open(transcript_filename1, 'w', encoding='utf-8')
+                transcript_file2 = open(transcript_filename2, 'w', encoding='utf-8')
 
             message_count = 0
             last_time = datetime.datetime.now()
@@ -144,37 +101,19 @@ def start_proxy(config, mirror_stdout, max_messages, logger, no_transcript):
                         last_time = current_time
 
                         message = data.decode('utf-8').strip()
-                        # message = re.sub(r'\n+', ' ', message)
 
                         if ready_socket == client1:
                             if not no_transcript:
-                                if message.startswith('/truncated:'):
-                                    lb_pos = message.find('<br>')
-                                    transcript_file.write(f"| {message_count} | {delta} | _{message[:lb_pos]}_<br>{filter_md(message[lb_pos+4:])} | |\n")
-                                    logger.warning(f"Received on 1 /truncate message: {message}")
-                                    d = data.decode('utf-8')
-                                    d = d[d.find('<br>')+4:]
-                                    data = d.encode('utf-8')
-                                    # continue
-                                else:
-                                    transcript_file.write(f"| {message_count} | {delta} | {filter_md(message)} | |\n")
+                                transcript_file1.write(f"### {message_count} ### {delta} ###: {message}\n")
                             client2.send(data)
                         else:
                             if not no_transcript:
-                                if message.startswith('/truncated:'):
-                                    lb_pos = message.find('<br>')
-                                    transcript_file.write(f"| {message_count} | {delta} | | _{message[:lb_pos]}_<br>{filter_md(message[lb_pos+4:])} |\n")
-                                    logger.warning(f"Received on 2 /truncate message: {message}")
-                                    d = data.decode('utf-8')
-                                    d = d[d.find('<br>')+4:]
-                                    data = d.encode('utf-8')
-                                    # continue
-                                else:
-                                    transcript_file.write(f"| {message_count} | {delta} | | {filter_md(message)} |\n")
+                                transcript_file2.write(f"### {message_count} ### {delta} ###: {message}\n")
                             client1.send(data)
 
                         if not no_transcript:
-                            transcript_file.flush()
+                            transcript_file1.flush()
+                            transcript_file2.flush()
                         if mirror_stdout:
                             print(f"({message_count}) Delta: {delta}s, {persona1 if ready_socket == client1 else persona2}: {message}")
                         
@@ -199,14 +138,16 @@ def start_proxy(config, mirror_stdout, max_messages, logger, no_transcript):
                 client2.send(b'/stop\n')
                 logger.info(f"Client2 {addr2[0]}:{addr2[1]} sent: /stop")
                 client2.close()
-            if transcript_file:
-                transcript_file.close()
+            if transcript_file1:
+                transcript_file1.close()
+            if transcript_file2:
+                transcript_file2.close()
             server.close()
             
         if not no_transcript:
-            logger.info(f"Conversation ended. Transcript saved to {transcript_filename}")
+            logger.info(f"Conversation ended. Transcripts saved to {transcript_filename1} and {transcript_filename2}")
         else:
-            logger.info("Conversation ended. No transcript saved.")
+            logger.info("Conversation ended. No transcripts saved.")
         time.sleep(1)
 
 if __name__ == "__main__":

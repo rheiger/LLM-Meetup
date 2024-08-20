@@ -9,3 +9,5 @@ config/anthropic_*.yml
 config/lmstudio_*.yml
 config/llm_proxy_*.yml
 __pycache__/*
+transcripts/*
+logs/*
