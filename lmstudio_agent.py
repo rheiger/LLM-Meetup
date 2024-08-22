@@ -4,6 +4,9 @@ from typing import Dict, Any, List
 import socket
 from openai import OpenAI
 from typing import Tuple
+import sys
+
+__version__ = "v0.0.2 (build: 33) by rheiger@icloud.com on 2024-08-22 15:17:17"
 
 def load_config(config_file: str) -> Dict[str, Any]:
     """Load configuration from a YAML file."""
@@ -58,11 +61,19 @@ def handle_client(s: socket.socket, config: Dict[str, Any], system_prompt: str, 
 
 def main():
     parser = argparse.ArgumentParser(description="LM Studio LLM TCP Server")
-    parser.add_argument("prompt_file", help="Markdown file containing the system prompt")
+    parser.add_argument("prompt_file", nargs='?', help="Markdown file containing the system prompt")
     parser.add_argument("-c", "--config", default="config/lmstudio.yml", help="YAML configuration file")
     parser.add_argument("-H", "--host", default="127.0.0.1", help="TCP server host")
     parser.add_argument("-p", "--port", type=int, default=18888, help="TCP server port")
+    parser.add_argument("-V","--version", action="store_true", help="print version information, then quit")
     args = parser.parse_args()
+
+    if args.version:
+        print(f"Ollama Agent ({sys.argv[0]}) {__version__}")
+        exit(0)
+
+    if not args.prompt_file:
+        parser.error("prompt_file is required unless --version is specified")
 
     config = load_config(args.config)
     system_prompt, persona_name = load_system_prompt(args.prompt_file)

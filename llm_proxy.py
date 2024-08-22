@@ -1,7 +1,6 @@
 import socket
 import threading
 import sys
-import random
 import datetime
 import re
 import argparse
@@ -9,6 +8,8 @@ import logging
 import yaml
 import time
 import select
+
+__version__ = "v0.0.2 (build: 33) by rheiger@icloud.com on 2024-08-22 15:17:17"
 
 def sanitize_filename(name):
     # Remove any characters that aren't alphanumeric, underscore, or hyphen
@@ -268,7 +269,12 @@ if __name__ == "__main__":
     parser.add_argument('-p','--port', type=int, default=18888, help='Specify the port')
     parser.add_argument('-q','--quiet', action='store_true', help='Enable quiet mode with minimal logging')
     parser.add_argument('-n','--no-transcript', action='store_true', help='Omit writing a transcript file')
+    parser.add_argument("-V","--version", action="store_true", help="print version information, then quit")
     args = parser.parse_args()
+
+    if args.version:
+        print(f"Ollama Agent ({sys.argv[0]}) {__version__}")
+        exit(0)
 
     try:
         with open(args.config, 'r') as config_file:
