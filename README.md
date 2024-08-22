@@ -127,7 +127,7 @@ python llm_agent.py -s ollama personas/youngsheldon.md
 There will be more to come. Feedback is welcome.
 
 #### Version and last edited
-This is version v0.3.6 (build: 32) by rheiger@icloud.com on 2024-08-22 15:01:02
+This is version v0.3.7 (build: 33) by rheiger@icloud.com on 2024-08-22 15:02:43
 
 ##### Build comments
 Added the git pre-commit hook to the repo

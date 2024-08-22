@@ -9,6 +9,7 @@ def update_version(content, file_path):
     # Get the current version
     version_match = re.search(r'v(\d+\.\d+\.(-?\d+)) \(build: (\d+)\)', content)
     if version_match:
+        print(f"Found version {version_match} in {file_path}")
         version_str = version_match.group(1)
         patch_str = version_match.group(2)
         version_parts = version_str.split('.')
