@@ -9,7 +9,7 @@ import json
 import random
 import sys
 
-__version__ = "v0.3.2 (build: 28) by rheiger@icloud.com on 2024-08-22 12:43:32"
+__version__ = "0.3.3"
 
 def load_config(config_file: str) -> Dict[str, Any]:
     """Load configuration from a YAML file."""

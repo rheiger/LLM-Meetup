@@ -2,40 +2,62 @@
 
 import re
 import subprocess
+import os
 from datetime import datetime
 
-# Read the README.md file
-with open('README.md', 'r') as file:
-    content = file.read()
+def update_version(content, file_path):
+    # Get the current version
+    version_match = re.search(r'v(\d+\.\d+\.(-?\d+)) \(build: (\d+)\)', content)
+    if version_match:
+        version_str = version_match.group(1)
+        patch_str = version_match.group(2)
+        version_parts = version_str.split('.')
+        major, minor = map(int, version_parts[:2])
+        patch = int(patch_str)
+        patch += 1
+        version = f"{major}.{minor}.{patch}"
+        build = int(version_match.group(3)) + 1
+    else:
+        version = '0.0.1'
+        build = 1
 
-# Get the current version
-version_match = re.search(r'v(\d+\.\d+\.(-?\d+)) \(build: (\d+)\)', content)
-if version_match:
-    version_str = version_match.group(1)
-    patch_str = version_match.group(2)
-    version_parts = version_str.split('.')
-    major, minor = map(int, version_parts[:2])
-    patch = int(patch_str)
-    patch += 1
-    version = f"{major}.{minor}.{patch}"
-    build = int(version_match.group(3)) + 1
-else:
-    version = '0.0.1'
-    build = 1
+    # Get the current user's email
+    user_email = subprocess.check_output(['git', 'config', 'user.email']).decode().strip()
 
-# Get the current user's email
-user_email = subprocess.check_output(['git', 'config', 'user.email']).decode().strip()
+    # Update the version line
+    current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    new_version_line = f"This is version v{version} (build: {build}) by {user_email} on {current_time}"
 
-# Update the version line
-current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-new_version_line = f"This is version v{version} (build: {build}) by {user_email} on {current_time}"
+    # Replace the old version line with the new one for README.md
+    if file_path.lower() == 'readme.md':
+        updated_content = re.sub(r'This is version.*', new_version_line, content)
+    else:
+        # Update __version__ in Python scripts
+        updated_content = re.sub(r'__version__\s*=\s*[\'"].*?[\'"]', f'__version__ = "{version}"', content)
 
-# Replace the old version line with the new one
-updated_content = re.sub(r'This is version.*', new_version_line, content)
+    return updated_content, version, build
 
-# Write the updated content back to README.md
-with open('README.md', 'w') as file:
-    file.write(updated_content)
+def process_file(file_path):
+    with open(file_path, 'r') as file:
+        content = file.read()
 
-# Stage the modified README.md
-subprocess.call(['git', 'add', 'README.md'])
+    if file_path.lower() == 'readme.md' or (file_path.endswith('.py') and '__version__' in content):
+        updated_content, version, build = update_version(content, file_path)
+
+        with open(file_path, 'w') as file:
+            file.write(updated_content)
+
+        # Stage the modified file
+        subprocess.call(['git', 'add', file_path])
+
+        print(f"Updated {file_path} to version {version} (build: {build})")
+
+# Process README.md
+process_file('README.md')
+
+# Process Python scripts
+for root, dirs, files in os.walk('.'):
+    for file in files:
+        if file.endswith('.py'):
+            file_path = os.path.join(root, file)
+            process_file(file_path)

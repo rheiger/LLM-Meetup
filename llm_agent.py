@@ -3,6 +3,8 @@ import yaml
 import importlib
 import sys
 
+__version__ = "0.3.3"
+
 def load_config(config_file):
     with open(config_file, 'r') as file:
         config = yaml.safe_load(file)
@@ -10,7 +12,7 @@ def load_config(config_file):
 
 def main():
     parser = argparse.ArgumentParser(description="LLM Agent Selector")
-    parser.add_argument("prompt_file", help="Markdown file containing the system prompt")
+    parser.add_argument("prompt_file", nargs="?", help="Markdown file containing the system prompt")
     parser.add_argument("-c", "--config", default="config/agent.yml", help="YAML configuration file")
     parser.add_argument("-s", "--service", choices=["lmstudio", "openai", "ollama", "anthropic"], help="Select the service to use")
     parser.add_argument("-H", "--host", default="127.0.0.1", help="TCP server host")
@@ -18,11 +20,19 @@ def main():
     parser.add_argument("-l","--logfile", help="Log file path")
     parser.add_argument("-v","--verbose", action="store_true", help="Enable verbose logging")
     parser.add_argument("-q","--quiet", action="store_true", help="Enable quiet mode with minimal logging")
+    parser.add_argument("-V","--version", action="store_true", help="print version information, then quit")
     
     # Parse known args to handle service-specific arguments
     args, unknown = parser.parse_known_args()
 
     config = load_config(args.config)
+
+    if args.version:
+        print(f"Ollama Agent ({sys.argv[0]}) {__version__}")
+        exit(0)
+
+    if not args.prompt_file:
+        parser.error("prompt_file is required unless --version is specified")
 
     if args.service and args.config == "config/agent.yml":
         args.config = (f"config/{args.service}.yml")
