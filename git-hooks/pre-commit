@@ -58,7 +58,8 @@ process_file('README.md')
 
 # Process Python scripts
 for root, dirs, files in os.walk('.'):
+    dirs[:] = [d for d in dirs if not d.startswith('.')]
     for file in files:
-        if file.endswith('.py'):
+        if not file.startswith('.') and file.endswith('.py'):
             file_path = os.path.join(root, file)
             process_file(file_path)
