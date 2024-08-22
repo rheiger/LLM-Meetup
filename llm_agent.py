@@ -3,7 +3,7 @@ import yaml
 import importlib
 import sys
 
-__version__ = "0.3.6"
+__version__ = "v0.0.1 (build: 1) by rheiger@icloud.com on 2024-08-22 15:08:34"
 
 def load_config(config_file):
     with open(config_file, 'r') as file:

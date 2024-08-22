@@ -34,7 +34,7 @@ def update_version(content, file_path):
         updated_content = re.sub(r'This is version.*', new_version_line, content)
     else:
         # Update __version__ in Python scripts
-        updated_content = re.sub(r'__version__\s*=\s*[\'"].*?[\'"]', f'__version__ = "{version}"', content)
+        updated_content = re.sub(r'__version__\s*=\s*[\'"].*?[\'"]', f'__version__ = "v{version} (build: {build}) by {user_email} on {current_time}"', content)
 
     return updated_content, version, build
 
