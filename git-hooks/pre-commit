@@ -1,0 +1,41 @@
+#!/usr/bin/env python3
+
+import re
+import subprocess
+from datetime import datetime
+
+# Read the README.md file
+with open('README.md', 'r') as file:
+    content = file.read()
+
+# Get the current version
+version_match = re.search(r'v(\d+\.\d+\.(-?\d+)) \(build: (\d+)\)', content)
+if version_match:
+    version_str = version_match.group(1)
+    patch_str = version_match.group(2)
+    version_parts = version_str.split('.')
+    major, minor = map(int, version_parts[:2])
+    patch = int(patch_str)
+    patch += 1
+    version = f"{major}.{minor}.{patch}"
+    build = int(version_match.group(3)) + 1
+else:
+    version = '0.0.1'
+    build = 1
+
+# Get the current user's email
+user_email = subprocess.check_output(['git', 'config', 'user.email']).decode().strip()
+
+# Update the version line
+current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+new_version_line = f"This is version v{version} (build: {build}) by {user_email} on {current_time}"
+
+# Replace the old version line with the new one
+updated_content = re.sub(r'This is version.*', new_version_line, content)
+
+# Write the updated content back to README.md
+with open('README.md', 'w') as file:
+    file.write(updated_content)
+
+# Stage the modified README.md
+subprocess.call(['git', 'add', 'README.md'])

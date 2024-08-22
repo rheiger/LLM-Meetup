@@ -18,27 +18,98 @@ def sanitize_filename(name):
 
 def handle_client(client_socket, partner_socket, hello_message=None, transcript_file=None, session_name=None, mirror_stdout=False, max_messages=0, logger=None):
     persona_name = None
-    
+    persona_lang = None
+    persona_model = None
+
     # Wait for the /iam message
     while not persona_name:
         data = client_socket.recv(4096).decode('utf-8').strip()
         if data.startswith('/iam:'):
             logger.debug(f"Received /iam message: {data}")
-            persona_name = data.split(':')[1].strip()
-            logger.info(f"Received persona name: {persona_name}")
+            match = re.match(r'/iam:\s?(.*?)(?:\s+\((.*?)\))?\.(.*)$', data)
+            if match:
+                persona_name = match.group(1)
+                persona_lang = match.group(2) if match.group(2) else "--"
+                persona_model = match.group(3) if match.group(3) else "Unknown_model"
+                logger.info(f"Received persona name: {persona_name}, language: {persona_lang}")
+            else:
+                logger.warning(f"Invalid /iam message format: '{data}'")
+                persona_name = "Unknown"
+                persona_lang = ""
+                persona_model = "Unknown_model"
             break
     
     if hello_message:
         client_socket.send(hello_message.encode() + b'\n')
         logger.info(f"Sent hello message: {hello_message} to {client_socket.getpeername()}")
     
-    return persona_name
+    return persona_name, persona_name, persona_model
+
+def filter_md(s: str) -> str:
+    """Escape markdown instructions from a string."""
+    # s = s.replace('*', r'\*')
+    # s = s.replace('_', r'\_')
+    s = s.replace('`', r'\`')
+    s = s.replace('#', r'\#')
+    # s = s.replace('-', r'\-')
+    s = s.replace('>', r'\>')
+    s = s.replace('+', r'\+')
+    s = s.replace('=', r'\=')
+    s = s.replace('|', r'\|')
+    # s = s.replace('[', r'\[')
+    # s = s.replace(']', r'\]')
+    # s = s.replace('(', r'\(')
+    # s = s.replace(')', r'\)')
+    # s = s.replace('!', r'\!')
+    s = s.replace('\n\n', '<br>')
+    def process_item(item):
+        item = item.strip().lstrip('0123456789.-*+[] ')
+        if item.lower().startswith('[ ]'):
+            return f'<li><input type="checkbox"> {item[3:].strip()}</li>'
+        elif item.lower().startswith('[x]'):
+            return f'<li><input type="checkbox" checked> {item[3:].strip()}</li>'
+        else:
+            return f'<li>{item}</li>'
+
+    def convert_list(match):
+        lines = match.group(0).split('\n')
+        list_type = 'ol' if re.match(r'^\d+\.', lines[0]) else 'ul'
+        items = [process_item(line) for line in lines if line.strip()]
+        return f'<{list_type}>\n' + '\n'.join(items) + f'\n</{list_type}>'
+
+    # More strict pattern to match lists
+    list_pattern = re.compile(r'(?:(?:^\d+\.|\-|\*|\+)[ \t].+\n?)+(?:\n|$)', re.MULTILINE)
+
+    # Replace lists in the text
+    converted_text = list_pattern.sub(convert_list, s)
+
+    return converted_text
+
+def format_message(message, debug=False):
+    if debug and message:
+        print(f"message='{message}'")
+
+    if message:
+        content = message
+        # Convert markdown to HTML
+        content = re.sub(r'\*\*(.*?)\*\*', r'<strong>\1</strong>', content)  # Bold
+        content = re.sub(r'\*(.*?)\*', r'<em>\1</em>', content)  # Italic
+        content = re.sub(r'^((?:\d+\. .*?\n)+)', lambda m: '<ol>' + re.sub(r'(\d+\. )(.*?)(?:\n|$)', r'<li>\2</li>', m.group(1)) + '</ol>\n', content, flags=re.MULTILINE)  # Ordered list
+        content = re.sub(r'^(- |\* )(.*?)(\n\n|$)', r'<ul><li>\2</li></ul>\n\n', content, flags=re.DOTALL|re.MULTILINE)  # Unordered list
+        content = re.sub(r'\n(- |\* )', r'</li><li>', content)  # Unordered list items
+        content = re.sub(r'^(\[ \] )(.*?)(\n\n|$)', r'<ul class="checklist"><li><input type="checkbox">\2</li></ul>\n\n', content, flags=re.DOTALL|re.MULTILINE)  # Checkbox list
+        content = re.sub(r'^(\[x\] )(.*?)(\n\n|$)', r'<ul class="checklist"><li><input type="checkbox" checked>\2</li></ul>\n\n', content, flags=re.DOTALL|re.MULTILINE)  # Checked checkbox list
+        content = re.sub(r'\n(\[ \] )', r'</li><li><input type="checkbox">', content)  # Checkbox list items
+        content = re.sub(r'\n(\[x\] )', r'</li><li><input type="checkbox" checked>', content)  # Checked checkbox list items
+        return content
+    return ""
 
 def start_proxy(config, mirror_stdout, max_messages, logger, no_transcript):
     port = config['proxy']['port']
     host = config['proxy']['host']
     hello = config['proxy'].get('hello', '')
-    
+    debug = False
+
     while True:
         server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -55,8 +126,7 @@ def start_proxy(config, mirror_stdout, max_messages, logger, no_transcript):
 
         client1 = None
         client2 = None
-        transcript_file1 = None
-        transcript_file2 = None
+        transcript_file = None
 
         try:
             client1, addr1 = server.accept()
@@ -68,17 +138,22 @@ def start_proxy(config, mirror_stdout, max_messages, logger, no_transcript):
             iso_date = datetime.datetime.now().isoformat()
             
             send_hello_to_first = True # Alternatively use False or random.choice([True, False])
-            persona1 = handle_client(client1, client2, hello if send_hello_to_first else None, None, None, mirror_stdout, max_messages, logger)
-            persona2 = handle_client(client2, client1, hello if not send_hello_to_first else None, None, None, mirror_stdout, max_messages, logger)
+            persona1,lang1,model1 = handle_client(client1, client2, hello if send_hello_to_first else None, None, None, mirror_stdout, max_messages, logger)
+            persona2,lang2,model2 = handle_client(client2, client1, hello if not send_hello_to_first else None, None, None, mirror_stdout, max_messages, logger)
 
             if not no_transcript:
                 safe_persona1 = sanitize_filename(persona1)
                 safe_persona2 = sanitize_filename(persona2)
-                transcript_filename1 = f'transcripts/transcript_{iso_date}_{safe_persona1}.txt'
-                transcript_filename2 = f'transcripts/transcript_{iso_date}_{safe_persona2}.txt'
+                transcript_filename = f'transcripts/transcript_{iso_date}_{safe_persona1}({lang1})_{sanitize_filename(model1)}---{safe_persona2}({lang2})_{sanitize_filename(model2)}.html'
                 
-                transcript_file1 = open(transcript_filename1, 'w', encoding='utf-8')
-                transcript_file2 = open(transcript_filename2, 'w', encoding='utf-8')
+                transcript_file = open(transcript_filename, 'w', encoding='utf-8')
+                transcript_file.write('<!DOCTYPE html>\n<html lang="en">\n<head>\n<meta charset="UTF-8">\n<meta name="viewport" content="width=device-width, initial-scale=1.0">\n<title>Transcript</title>\n<style>\n')
+                transcript_file.write('table { border-collapse: collapse; width: 100%; }\n')
+                transcript_file.write('th, td { border: 1px solid black; padding: 8px; text-align: left; }\n')
+                transcript_file.write('th { background-color: #f2f2f2; }\n')
+                transcript_file.write('</style>\n</head>\n<body>\n')
+                transcript_file.write('<table>\n')
+                transcript_file.write(f'<tr><th>Count</th><th>Delta</th><th>{persona1}</th><th>{persona2}</th></tr>\n')
 
             message_count = 0
             last_time = datetime.datetime.now()
@@ -100,20 +175,53 @@ def start_proxy(config, mirror_stdout, max_messages, logger, no_transcript):
                         delta = int((current_time - last_time).total_seconds())
                         last_time = current_time
 
+                        logger.debug(f"Received {len(data)} bytes from {ready_socket.getpeername()}: {data}")
                         message = data.decode('utf-8').strip()
-
+                        message = re.sub(r'\n+', ' ', message) # TODO Maybe remove this
+                        logger.debug(f"Received message: {message}")
+                        
+                        # Here is where we prepare to write out the transcript for session 1
+                        content1 = ""
+                        content2 = ""
                         if ready_socket == client1:
                             if not no_transcript:
-                                transcript_file1.write(f"### {message_count} ### {delta} ###: {message}\n")
+                                # Check if we have received the hint that context might have been truncated
+                                if message.startswith('/truncated:'):
+                                    lb_pos = message.find('<br>')
+                                    #transcript_file.write(f"| {message_count} | {delta} | _{message[:lb_pos]}_<br>{filter_md(message[lb_pos+4:])} | |\n")
+                                    logger.warning(f"Received on 1 /truncate message: {message}")
+                                    message = f"<i>{message[:lb_pos]}</i><br>{message[lb_pos+4:]}"
+                                    d = data.decode('utf-8')
+                                    d = d[d.find('<br>')+4:]
+                                    data = d.encode('utf-8')
+                                    # continue
+                                # else:
+                                #     #transcript_file.write(f"| {message_count} | {delta} | {filter_md(message)} | |\n")
+                                content1 = format_message(message)
+
                             client2.send(data)
+                        # Here is where we prepare to write out the transcript for session 2
                         else:
                             if not no_transcript:
-                                transcript_file2.write(f"### {message_count} ### {delta} ###: {message}\n")
+                                if message.startswith('/truncated:'):
+                                    lb_pos = message.find('<br>')
+                                    # transcript_file.write(f"| {message_count} | {delta} | | _{message[:lb_pos]}_<br>{filter_md(message[lb_pos+4:])} |\n")
+                                    logger.warning(f"Received on 2 /truncate message: {message}")
+                                    message = f"<i>{message[:lb_pos]}</i><br>{message[lb_pos+4:]}"
+                                    d = data.decode('utf-8')
+                                    d = d[d.find('<br>')+4:]
+                                    data = d.encode('utf-8')
+                                    # continue
+                                # else:
+                                #     # transcript_file.write(f"| {message_count} | {delta} | | {filter_md(message)} |\n")
+                                content2 = format_message(message)
                             client1.send(data)
 
                         if not no_transcript:
-                            transcript_file1.flush()
-                            transcript_file2.flush()
+                            # Do the actual write to the transcript file
+                            logger.debug(f"Writing message to transcript file: {content1} or {content2}")
+                            transcript_file.write(f'<tr><td>{message_count}</td><td>{delta:.2f}</td><td>{content1}</td><td>{content2}</td></tr>\n')
+                            transcript_file.flush()
                         if mirror_stdout:
                             print(f"({message_count}) Delta: {delta}s, {persona1 if ready_socket == client1 else persona2}: {message}")
                         
@@ -138,16 +246,15 @@ def start_proxy(config, mirror_stdout, max_messages, logger, no_transcript):
                 client2.send(b'/stop\n')
                 logger.info(f"Client2 {addr2[0]}:{addr2[1]} sent: /stop")
                 client2.close()
-            if transcript_file1:
-                transcript_file1.close()
-            if transcript_file2:
-                transcript_file2.close()
+            if transcript_file:
+                transcript_file.write('</table>\n</body>\n</html>')
+                transcript_file.close()
             server.close()
             
         if not no_transcript:
-            logger.info(f"Conversation ended. Transcripts saved to {transcript_filename1} and {transcript_filename2}")
+            logger.info(f"Conversation ended. Transcript saved to {transcript_filename}")
         else:
-            logger.info("Conversation ended. No transcripts saved.")
+            logger.info("Conversation ended. No transcript saved.")
         time.sleep(1)
 
 if __name__ == "__main__":

@@ -7,6 +7,9 @@ from typing import Tuple
 import logging
 import json 
 import random
+import sys
+
+__version__ = "v0.3.2 (build: 28) by rheiger@icloud.com on 2024-08-22 12:43:32"
 
 def load_config(config_file: str) -> Dict[str, Any]:
     """Load configuration from a YAML file."""
@@ -76,6 +79,7 @@ def handle_client(s: socket.socket, ollama_client: ollama.Client, config: Dict[s
 
     chat_history: List[Dict[str, str]] = [{"role": "system", "content": system_prompt}]
     max_bytes = config['max_tokens'] * 30 + 1024 if 'max_tokens' in config else 32768 # Estimate 6 bytes per character (safe for UTF-8)
+    # max_bytes = 8192 # WARNING AND TODO: Tis is just for testing truncation of chat history without having to wait too long
     keep_looping = True
     while keep_looping:
         try:
@@ -146,15 +150,23 @@ def handle_client(s: socket.socket, ollama_client: ollama.Client, config: Dict[s
 
 def main():
     parser = argparse.ArgumentParser(description="Ollama LLM TCP Server")
-    parser.add_argument("prompt_file", help="Markdown file containing the system prompt")
+    parser.add_argument("prompt_file", nargs='?', help="Markdown file containing the system prompt")
     parser.add_argument("-c", "--config", default="config/ollama.yml", help="YAML configuration file")
     parser.add_argument("-H", "--host", default="127.0.0.1", help="TCP server host")
     parser.add_argument("-p", "--port", type=int, default=18888, help="TCP server port")
     parser.add_argument("-l","--logfile", help="Log file path")
     parser.add_argument("-v","--verbose", action="store_true", help="Enable verbose logging")
     parser.add_argument("-q","--quiet", action="store_true", help="Enable quiet mode with minimal logging")
+    parser.add_argument("-V","--version", action="store_true", help="print version information, then quit")
     args = parser.parse_args()
 
+    if args.version:
+        print(f"Ollama Agent ({sys.argv[0]}) {__version__}")
+        exit(0)
+
+    if not args.prompt_file:
+        parser.error("prompt_file is required unless --version is specified")
+    
     if args.quiet:
         log_level = logging.WARNING
     elif args.verbose:
