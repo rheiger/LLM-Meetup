@@ -18,30 +18,21 @@ def sanitize_filename(name):
 
 def handle_client(client_socket, partner_socket, hello_message=None, transcript_file=None, session_name=None, mirror_stdout=False, max_messages=0, logger=None):
     persona_name = None
-    persona_lang = None
-    persona_model = None
-
+    
     # Wait for the /iam message
     while not persona_name:
         data = client_socket.recv(4096).decode('utf-8').strip()
         if data.startswith('/iam:'):
             logger.debug(f"Received /iam message: {data}")
-            match = re.match(r'/iam:\s?(.*?)(?:\s+\((.*?)\))?\.(.*)$', data)
-            if match:
-                persona_name = match.group(1)
-                persona_lang = match.group(2) if match.group(2) else "--"
-                logger.info(f"Received persona name: {persona_name}, language: {persona_lang}")
-            else:
-                logger.warning(f"Invalid /iam message format: '{data}'")
-                persona_name = "Unknown"
-                persona_lang = ""            
+            persona_name = data.split(':')[1].strip()
+            logger.info(f"Received persona name: {persona_name}")
             break
     
     if hello_message:
         client_socket.send(hello_message.encode() + b'\n')
         logger.info(f"Sent hello message: {hello_message} to {client_socket.getpeername()}")
     
-    return persona_name, persona_lang
+    return persona_name
 
 def start_proxy(config, mirror_stdout, max_messages, logger, no_transcript):
     port = config['proxy']['port']
@@ -66,8 +57,6 @@ def start_proxy(config, mirror_stdout, max_messages, logger, no_transcript):
         client2 = None
         transcript_file1 = None
         transcript_file2 = None
-        lang1 = None
-        lang2 = None
 
         try:
             client1, addr1 = server.accept()
@@ -79,8 +68,8 @@ def start_proxy(config, mirror_stdout, max_messages, logger, no_transcript):
             iso_date = datetime.datetime.now().isoformat()
             
             send_hello_to_first = True # Alternatively use False or random.choice([True, False])
-            persona1, lang1 = handle_client(client1, client2, hello if send_hello_to_first else None, None, None, mirror_stdout, max_messages, logger)
-            persona2, lang2 = handle_client(client2, client1, hello if not send_hello_to_first else None, None, None, mirror_stdout, max_messages, logger)
+            persona1 = handle_client(client1, client2, hello if send_hello_to_first else None, None, None, mirror_stdout, max_messages, logger)
+            persona2 = handle_client(client2, client1, hello if not send_hello_to_first else None, None, None, mirror_stdout, max_messages, logger)
 
             if not no_transcript:
                 safe_persona1 = sanitize_filename(persona1)
@@ -115,11 +104,11 @@ def start_proxy(config, mirror_stdout, max_messages, logger, no_transcript):
 
                         if ready_socket == client1:
                             if not no_transcript:
-                                transcript_file1.write(f"### {message_count} ### {delta} ###: ({lang1}):{message}\n")
+                                transcript_file1.write(f"### {message_count} ### {delta} ###: {message}\n")
                             client2.send(data)
                         else:
                             if not no_transcript:
-                                transcript_file2.write(f"### {message_count} ### {delta} ###: ({lang2}):{message}\n")
+                                transcript_file2.write(f"### {message_count} ### {delta} ###: {message}\n")
                             client1.send(data)
 
                         if not no_transcript:

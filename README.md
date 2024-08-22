@@ -121,13 +121,13 @@ python llm_agent.py -s ollama personas/youngsheldon.md
 - Added option `-n` to `llm_proxy.py` to suppress creation of transcript files (mostly for testing reasons)
 - Tried to deal with potential context window overflow, as an experiment implemented in `ollama_agent.py`. You may want to check this.
 - Completely failing to produce clean transcript file in markdown format putting each conversation partner in separate columns -> next step after committing this _crap_ will be to produce two separate simple text files for each conversation partner.
-- Moved to create seperate transcripts per session, which can be combined into one single html file using `combine_transcripts.py`
+- Now `llm_proxypy` will write transcript to a html file in tabular format
 
 ## Outlook
 There will be more to come. Feedback is welcome.
 
 #### Version and last edited
-This is version v0.3.2 (build: 28) by rheiger@icloud.com on 2024-08-22 12:43:32
+This is version v0.3.3 (build: 29) by rheiger@icloud.com on 2024-08-22 14:47:35
 
 ##### Build comments
-This build is just an intermediate step to go back to having `llm_proxy` produce a single transcript file but using html rather than markdown to better preserve formatting of the conversation.
+Added the git pre-commit hook to the repo
