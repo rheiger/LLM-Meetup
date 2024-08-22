@@ -8,8 +8,11 @@ import logging
 import yaml
 import time
 import select
+import pyttsx3
+import langdetect
+import random
 
-__version__ = "v0.3.11 (build: 37) by rheiger@icloud.com on 2024-08-22 15:20:35"
+__version__ = "This is version v0.4.0 (build: 38) by rheiger@icloud.com on 2024-08-23 00:07:04"
 
 def sanitize_filename(name):
     # Remove any characters that aren't alphanumeric, underscore, or hyphen
@@ -17,17 +20,18 @@ def sanitize_filename(name):
     # Limit to 24 characters
     return sanitized[:32]
 
-def handle_client(client_socket, partner_socket, hello_message=None, transcript_file=None, session_name=None, mirror_stdout=False, max_messages=0, logger=None):
+def handle_client(client_socket, partner_socket, hello_message=None, transcript_file=None, session_name=None, mirror_stdout=False, max_messages=0, logger=None, debug=False, tts=False):
     persona_name = None
     persona_lang = None
     persona_model = None
+    tts_engine = None
 
     # Wait for the /iam message
     while not persona_name:
         data = client_socket.recv(4096).decode('utf-8').strip()
         if data.startswith('/iam:'):
             logger.debug(f"Received /iam message: {data}")
-            match = re.match(r'/iam:\s?(.*?)(?:\s+\((.*?)\))?\.(.*)$', data)
+            match = re.match(r'/iam:\s?(.*?)(?:\s+\((.*?)\))?\.(.*)', data)
             if match:
                 persona_name = match.group(1)
                 persona_lang = match.group(2) if match.group(2) else "--"
@@ -40,11 +44,49 @@ def handle_client(client_socket, partner_socket, hello_message=None, transcript_
                 persona_model = "Unknown_model"
             break
     
+    if tts:
+        tts_engine = pyttsx3.init()
+        if persona_lang:
+            try:
+                voices = tts_engine.getProperty('voices')
+                logger.debug(f"Available TTS voices: {voices}")
+                matching_voices = [v for v in voices if v.languages and persona_lang.lower() in [l.lower() for l in v.languages]]
+                if matching_voices:
+                    if 'female' in persona_name.lower():
+                        female_voices = [v for v in matching_voices if 'female' in v.gender.lower()]
+                        if female_voices:
+                            tts_engine.setProperty('voice', female_voices[0].id)
+                    else:
+                        tts_engine.setProperty('voice', matching_voices[0].id)
+            except Exception as e:
+                logger.warning(f"Failed to set TTS voice: {e}")
+                try:
+                    voices = tts_engine.getProperty('voices')
+                    if voices:
+                        random_voice = random.choice(voices)
+                        tts_engine.setProperty('voice', random_voice.id)
+                        logger.info(f"Assigned random voice: {random_voice.name}")
+                    else:
+                        logger.warning("No voices available for TTS")
+                except Exception as e:
+                    logger.error(f"Failed to assign random voice: {e}")
+        else:
+            try:
+                voices = tts_engine.getProperty('voices')
+                english_voices = [v for v in voices if v.languages and 'en' in [l.lower() for l in v.languages]]
+                if english_voices:
+                    tts_engine.setProperty('voice', english_voices[0].id)
+                    logger.info(f"Assigned English voice: {english_voices[0].name}")
+                else:
+                    logger.warning("No English voices available, using default voice")
+            except Exception as e:
+                logger.error(f"Failed to set English voice: {e}")
+
     if hello_message:
         client_socket.send(hello_message.encode() + b'\n')
         logger.info(f"Sent hello message: {hello_message} to {client_socket.getpeername()}")
     
-    return persona_name, persona_name, persona_model
+    return persona_name, persona_lang, persona_model, tts_engine
 
 def filter_md(s: str) -> str:
     """Escape markdown instructions from a string."""
@@ -105,11 +147,10 @@ def format_message(message, debug=False):
         return content
     return ""
 
-def start_proxy(config, mirror_stdout, max_messages, logger, no_transcript):
+def start_proxy(config, mirror_stdout, max_messages, logger, no_transcript, debug = False, tts=False):
     port = config['proxy']['port']
     host = config['proxy']['host']
     hello = config['proxy'].get('hello', '')
-    debug = False
 
     while True:
         server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -128,6 +169,14 @@ def start_proxy(config, mirror_stdout, max_messages, logger, no_transcript):
         client1 = None
         client2 = None
         transcript_file = None
+        persona1 = None
+        persona2 = None
+        lang1 = None
+        lang2 = None
+        model1 = None
+        model2 = None
+        tts_engine1 = None
+        tts_engine2 = None
 
         try:
             client1, addr1 = server.accept()
@@ -139,8 +188,8 @@ def start_proxy(config, mirror_stdout, max_messages, logger, no_transcript):
             iso_date = datetime.datetime.now().isoformat()
             
             send_hello_to_first = True # Alternatively use False or random.choice([True, False])
-            persona1,lang1,model1 = handle_client(client1, client2, hello if send_hello_to_first else None, None, None, mirror_stdout, max_messages, logger)
-            persona2,lang2,model2 = handle_client(client2, client1, hello if not send_hello_to_first else None, None, None, mirror_stdout, max_messages, logger)
+            persona1,lang1,model1, tts_engine1 = handle_client(client1, client2, hello if send_hello_to_first else None, None, None, mirror_stdout, max_messages, logger, debug, tts)
+            persona2,lang2,model2, tts_engine2 = handle_client(client2, client1, hello if not send_hello_to_first else None, None, None, mirror_stdout, max_messages, logger, debug, tts)
 
             if not no_transcript:
                 safe_persona1 = sanitize_filename(persona1)
@@ -199,6 +248,9 @@ def start_proxy(config, mirror_stdout, max_messages, logger, no_transcript):
                                 # else:
                                 #     #transcript_file.write(f"| {message_count} | {delta} | {filter_md(message)} | |\n")
                                 content1 = format_message(message)
+                                if tts_engine1:
+                                    tts_engine1.say(message)
+                                    tts_engine1.runAndWait()
 
                             client2.send(data)
                         # Here is where we prepare to write out the transcript for session 2
@@ -216,6 +268,9 @@ def start_proxy(config, mirror_stdout, max_messages, logger, no_transcript):
                                 # else:
                                 #     # transcript_file.write(f"| {message_count} | {delta} | | {filter_md(message)} |\n")
                                 content2 = format_message(message)
+                                if tts_engine2:
+                                    tts_engine2.say(message)
+                                    tts_engine2.runAndWait()
                             client1.send(data)
 
                         if not no_transcript:
@@ -263,6 +318,7 @@ if __name__ == "__main__":
     parser.add_argument('-m', '--mirror', action='store_true', help='Mirror transcript to stdout')
     parser.add_argument('-M', '--max-messages', type=int, default=10, help='Maximum number of messages to forward (0 for unlimited)')
     parser.add_argument('-v', '--verbose', action='store_true', help='Enable verbose logging')
+    parser.add_argument('-d', '--debug', action='store_true', help='Enable debugging')
     parser.add_argument('-l', '--logfile', help='Specify a log file')
     parser.add_argument('-c', '--config', default='config/llm_proxy_config.yml', help='Specify a config file')
     parser.add_argument('-H','--host', default='127.0.0.1', help='Specify the host')
@@ -270,6 +326,7 @@ if __name__ == "__main__":
     parser.add_argument('-q','--quiet', action='store_true', help='Enable quiet mode with minimal logging')
     parser.add_argument('-n','--no-transcript', action='store_true', help='Omit writing a transcript file')
     parser.add_argument("-V","--version", action="store_true", help="print version information, then quit")
+    parser.add_argument("-s","--tts", action="store_true", help="Enable text-to-speech output")
     args = parser.parse_args()
 
     if args.version:
@@ -303,4 +360,4 @@ if __name__ == "__main__":
         logging.basicConfig(level=log_level, format=log_format)
     logger = logging.getLogger('tcp_proxy')
 
-    start_proxy(config, config['proxy'].get('mirror', False), config['proxy'].get('max_messages', 10), logger, config['proxy'].get('no_transcript', False))
+    start_proxy(config, config['proxy'].get('mirror', False), config['proxy'].get('max_messages', 10), logger, config['proxy'].get('no_transcript', False), args.debug, args.tts)

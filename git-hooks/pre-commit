@@ -33,28 +33,38 @@ def update_version(content, file_path):
     if file_path.lower() == 'readme.md':
         updated_content = re.sub(r'This is version.*', new_version_line, content)
     else:
-        # Update __version__ in Python scripts
-        updated_content = re.sub(r'__version__\s*=\s*[\'"].*?[\'"]', f'__version__ = "v{version} (build: {build}) by {user_email} on {current_time}"', content)
+        # Update __version__ in Python scripts using the same version as README.md
+        updated_content = re.sub(r'__version__\s*=\s*[\'"].*?[\'"]', f'__version__ = "{new_version_line}"', content)
 
-    return updated_content, version, build
+    return updated_content, version, build, user_email, current_time
 
-def process_file(file_path):
+def process_file(file_path, readme_version=None):
     with open(file_path, 'r') as file:
         content = file.read()
 
-    if file_path.lower() == 'readme.md' or (file_path.endswith('.py') and '__version__' in content):
-        updated_content, version, build = update_version(content, file_path)
+    if file_path.lower() == 'readme.md':
+        updated_content, version, build, user_email, current_time = update_version(content, file_path)
+        readme_version = (version, build, user_email, current_time)
+    elif file_path.endswith('.py') and '__version__' in content:
+        if readme_version:
+            version, build, user_email, current_time = readme_version
+            new_version_line = f"This is version v{version} (build: {build}) by {user_email} on {current_time}"
+            updated_content = re.sub(r'__version__\s*=\s*[\'"].*?[\'"]', f'__version__ = "{new_version_line}"', content)
+        else:
+            updated_content, version, build, user_email, current_time = update_version(content, file_path)
 
-        with open(file_path, 'w') as file:
-            file.write(updated_content)
+    with open(file_path, 'w') as file:
+        file.write(updated_content)
 
-        # Stage the modified file
-        subprocess.call(['git', 'add', file_path])
+    # Stage the modified file
+    subprocess.call(['git', 'add', file_path])
 
-        print(f"Updated {file_path} to version {version} (build: {build})")
+    print(f"Updated {file_path} to version {version} (build: {build})")
+
+    return readme_version
 
 # Process README.md
-process_file('README.md')
+readme_version = process_file('README.md')
 
 # Process Python scripts
 for root, dirs, files in os.walk('.'):
@@ -62,4 +72,4 @@ for root, dirs, files in os.walk('.'):
     for file in files:
         if not file.startswith('.') and file.endswith('.py'):
             file_path = os.path.join(root, file)
-            process_file(file_path)
+            process_file(file_path, readme_version)

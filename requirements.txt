@@ -3,3 +3,6 @@ openai
 python-dotenv
 anthropic
 ollama
+langdetect
+pyttsx3
+pyobjc==9.0.1; sys_platform == 'darwin'
