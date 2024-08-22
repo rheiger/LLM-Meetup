@@ -127,7 +127,7 @@ python llm_agent.py -s ollama personas/youngsheldon.md
 There will be more to come. Feedback is welcome.
 
 #### Version and last edited
-This is version v0.3.1 (build: 27) by rheiger@icloud.com on 2024-08-22 12:39:15
+This is version v0.3.2 (build: 28) by rheiger@icloud.com on 2024-08-22 12:43:32
 
 ##### Build comments
 This build is just an intermediate step to go back to having `llm_proxy` produce a single transcript file but using html rather than markdown to better preserve formatting of the conversation.

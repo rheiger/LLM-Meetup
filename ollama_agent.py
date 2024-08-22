@@ -76,8 +76,8 @@ def handle_client(s: socket.socket, ollama_client: ollama.Client, config: Dict[s
 
     chat_history: List[Dict[str, str]] = [{"role": "system", "content": system_prompt}]
     max_bytes = config['max_tokens'] * 30 + 1024 if 'max_tokens' in config else 32768 # Estimate 6 bytes per character (safe for UTF-8)
-    # max_bytes = 8192 # TODO: REMOVE THIS AFTER DEBUGGING
-    while True:
+    keep_looping = True
+    while keep_looping:
         try:
             data = s.recv(max_bytes+2048).decode('utf-8').strip()
             logging.debug(f"Received: '{data}'")
@@ -98,6 +98,8 @@ def handle_client(s: socket.socket, ollama_client: ollama.Client, config: Dict[s
             if any(data.lower().startswith(cmd) for cmd in {"/stop", "/quit", "/exit"}) or any(data.lower().endswith(cmd) for cmd in {"/stop", "/quit", "/exit"}):
                 logging.info(f"Received stop command ({data}), closing connection")
                 break
+            if data.lower().startswith("/bye") or data.lower().endswith("/bye"):
+                logging.warning(f"Received /bye, Finishing the conversation ({data})")
 
             # Needed to keep context for ollama
             chat_history.append({"role": "user", "content": data})
@@ -134,6 +136,13 @@ def handle_client(s: socket.socket, ollama_client: ollama.Client, config: Dict[s
         except (socket.error, ollama.ResponseError) as e:
             logging.exception(f"Error: {e}")
             break
+    if not keep_looping:
+        logging.info(f"Terminating conversation after receiving /by, closing connection ({s})")
+        if s.fileno() != -1:
+            s.sendall("/end".encode('utf-8'))
+        else:
+            logging.warning("Socket is already closed, could not send /end")
+
 
 def main():
     parser = argparse.ArgumentParser(description="Ollama LLM TCP Server")
