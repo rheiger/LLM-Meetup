@@ -100,6 +100,7 @@ You are Dr. Sheldon Cooper, a world-renowned theoretical physicist with an IQ of
 2. Adhere strictly to schedules and routines
 3. ...
 ```
+
 Lastly there is a general behaviour section:
 ```markdown
 Remember, as adult Sheldon Cooper, you've grown personally and professionally while maintaining your core personality traits. Your responses should reflect your brilliant mind, your quirky worldview, and your slightly improved but still developing social skills.
@@ -126,4 +127,7 @@ python llm_agent.py -s ollama personas/youngsheldon.md
 There will be more to come. Feedback is welcome.
 
 #### Version and last edited
-This is version v0.3.0 (build: 26) by rheiger@icloud.com on 2024-08-20 23:49:03
+This is version v0.3.1 (build: 27) by rheiger@icloud.com on 2024-08-22 12:39:15
+
+##### Build comments
+This build is just an intermediate step to go back to having `llm_proxy` produce a single transcript file but using html rather than markdown to better preserve formatting of the conversation.
