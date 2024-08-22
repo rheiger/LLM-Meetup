@@ -8,7 +8,7 @@ import os
 from typing import Tuple
 import sys
 
-__version__ = "v0.0.2 (build: 33) by rheiger@icloud.com on 2024-08-22 15:17:17"
+__version__ = "v0.3.11 (build: 37) by rheiger@icloud.com on 2024-08-22 15:20:35"
 
 def load_config(config_file: str) -> Dict[str, Any]:
     with open(config_file, 'r') as f:

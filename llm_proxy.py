@@ -9,7 +9,7 @@ import yaml
 import time
 import select
 
-__version__ = "v0.0.2 (build: 33) by rheiger@icloud.com on 2024-08-22 15:17:17"
+__version__ = "v0.3.11 (build: 37) by rheiger@icloud.com on 2024-08-22 15:20:35"
 
 def sanitize_filename(name):
     # Remove any characters that aren't alphanumeric, underscore, or hyphen
