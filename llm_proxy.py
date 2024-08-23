@@ -12,7 +12,7 @@ import pyttsx3
 import langdetect
 import random
 
-__version__ = "This is version v0.4.2 (build: 40) by rheiger@icloud.com on 2024-08-23 03:11:12"
+__version__ = "This is version v0.4.3 (build: 41) by rheiger@icloud.com on 2024-08-23 03:27:52"
 
 def sanitize_filename(name):
     # Remove any characters that aren't alphanumeric, underscore, or hyphen
@@ -67,7 +67,7 @@ def handle_client(client_socket, partner_socket, hello_message=None, transcript_
                 matching_voices = voices
             
             if persona_gender.lower() == 'f':
-                gender_voices = [v for v in matching_voices if 'female' in str(v.gender).lower() and 'male' not in str(v.gender).lower()]
+                gender_voices = [v for v in matching_voices if 'female' in str(v.gender).lower()]
                 if debug:
                     logger.debug("****** Checking for female voice")
                     for voice in gender_voices:
