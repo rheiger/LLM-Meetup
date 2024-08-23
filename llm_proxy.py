@@ -12,7 +12,7 @@ import pyttsx3
 import langdetect
 import random
 
-__version__ = "This is version v0.4.1 (build: 39) by rheiger@icloud.com on 2024-08-23 02:36:50"
+__version__ = "This is version v0.4.2 (build: 40) by rheiger@icloud.com on 2024-08-23 03:11:12"
 
 def sanitize_filename(name):
     # Remove any characters that aren't alphanumeric, underscore, or hyphen
@@ -59,16 +59,34 @@ def handle_client(client_socket, partner_socket, hello_message=None, transcript_
             logger.debug(f"persona_lang = {persona_lang}")
             if persona_lang != "--":
                 matching_voices = [v for v in voices if any(persona_lang.lower() in lang.lower() for lang in v.languages) and v.id not in [other_voice.id if other_voice else ""]]
+                if debug:
+                    for voice in matching_voices:
+                        logger.debug(f"MatchingVoice for lang={persona_lang}: {voice.name}, ID: {voice.id}, Gender: {voice.gender}, Languages: {voice.languages}")
             
             if not matching_voices:
                 matching_voices = voices
             
             if persona_gender.lower() == 'f':
                 gender_voices = [v for v in matching_voices if 'female' in str(v.gender).lower() and 'male' not in str(v.gender).lower()]
+                if debug:
+                    logger.debug("****** Checking for female voice")
+                    for voice in gender_voices:
+                        logger.debug(f"MatchingFemaleVoice: {voice.name}, ID: {voice.id}, Gender: {voice.gender}, Languages: {voice.languages}")
             elif persona_gender.lower() == 'm':
                 gender_voices = [v for v in matching_voices if 'male' in str(v.gender).lower() and 'female' not in str(v.gender).lower()]
+                if debug:
+                    logger.debug("****** Checking for MALE voice")
+                    for voice in gender_voices:
+                        logger.debug(f"MatchingMaleVoice: {voice.name}, ID: {voice.id}, Gender: {voice.gender}, Languages: {voice.languages}")
             else:
+                gender_voices = None
+
+            if not gender_voices:
                 gender_voices = [v for v in matching_voices if 'neuter' in str(v.gender).lower()]
+                if debug:
+                    logger.debug("****** Checking for neuter voice")
+                    for voice in gender_voices:
+                        logger.debug(f"MatchingNeuterVoice: {voice.name}, ID: {voice.id}, Gender: {voice.gender}, Languages: {voice.languages}")
                 if len(gender_voices) == 0:
                     gender_voices = matching_voices
 
@@ -78,12 +96,12 @@ def handle_client(client_socket, partner_socket, hello_message=None, transcript_
             
             if gender_voices:
                 selected_voice = random.choice(gender_voices)
-                tts_engine.setProperty('voice', selected_voice.id)
+                # tts_engine.setProperty('voice', selected_voice.id)
                 logger.info(f"Assigned voice: {selected_voice.name} ({selected_voice.languages}) [{selected_voice.gender}] to {persona_name}")
             else:
                 logger.warning("No matching voices available, using default voice")
         except Exception as e:
-            logger.error(f"Failed to set voice: {e}")
+            logger.exception(f"Failed to set voice: {e}")
 
     if hello_message:
         client_socket.send(hello_message.encode() + b'\n')
@@ -257,9 +275,11 @@ def start_proxy(config, mirror_stdout, max_messages, logger, no_transcript, debu
                                 #     #transcript_file.write(f"| {message_count} | {delta} | {filter_md(message)} | |\n")
                                 content1 = format_message(message)
                                 if tts_engine1:
+                                    tts_engine1.setProperty('voice',voice1.id)
                                     tts_engine1.say(message)
                                     tts_engine1.runAndWait()
 
+                            last_time = datetime.datetime.now()
                             client2.send(data)
                         # Here is where we prepare to write out the transcript for session 2
                         else:
@@ -277,8 +297,11 @@ def start_proxy(config, mirror_stdout, max_messages, logger, no_transcript, debu
                                 #     # transcript_file.write(f"| {message_count} | {delta} | | {filter_md(message)} |\n")
                                 content2 = format_message(message)
                                 if tts_engine2:
+                                    tts_engine2.setProperty('voice',voice2.id)
                                     tts_engine2.say(message)
                                     tts_engine2.runAndWait()
+
+                            last_time = datetime.datetime.now()
                             client1.send(data)
 
                         if not no_transcript:

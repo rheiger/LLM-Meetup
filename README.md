@@ -125,13 +125,13 @@ python llm_agent.py -s ollama personas/youngsheldon.md
 - Now `llm_proxy` has an option to speak out the conversation aloud.
 
 ### Notes for the speech feature
-This has only been tested on a Mac. Underneath it is using the voices from MacOS. You need to install/download sufficient voices for the languages and gender you intend to use.
+This has only been tested on a Mac. Underneath it is using the voices from MacOS. You need to install/download sufficient voices for the languages and gender you intend to use. Also be aware adding speech **slows down** the conversation considerably.
 
 ## Outlook
 There will be more to come. Feedback is welcome.
 
 #### Version and last edited
-This is version v0.4.1 (build: 39) by rheiger@icloud.com on 2024-08-23 02:36:50
+This is version v0.4.2 (build: 40) by rheiger@icloud.com on 2024-08-23 03:11:12
 
 ##### Build comments
 Speaking option improved and added a few more personas
