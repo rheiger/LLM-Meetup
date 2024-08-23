@@ -121,13 +121,17 @@ python llm_agent.py -s ollama personas/youngsheldon.md
 - Added option `-n` to `llm_proxy.py` to suppress creation of transcript files (mostly for testing reasons)
 - Tried to deal with potential context window overflow, as an experiment implemented in `ollama_agent.py`. You may want to check this.
 - Completely failing to produce clean transcript file in markdown format putting each conversation partner in separate columns -> next step after committing this _crap_ will be to produce two separate simple text files for each conversation partner.
-- Now `llm_proxypy` will write transcript to a html file in tabular format
+- Now `llm_proxy` will write transcript to a html file in tabular format
+- Now `llm_proxy` has an option to speak out the conversation aloud.
+
+### Notes for the speech feature
+This has only been tested on a Mac. Underneath it is using the voices from MacOS. You need to install/download sufficient voices for the languages and gender you intend to use.
 
 ## Outlook
 There will be more to come. Feedback is welcome.
 
 #### Version and last edited
-This is version v0.4.0 (build: 38) by rheiger@icloud.com on 2024-08-23 00:07:04
+This is version v0.4.1 (build: 39) by rheiger@icloud.com on 2024-08-23 02:36:50
 
 ##### Build comments
-Speaking option implemented initially
+Speaking option improved and added a few more personas

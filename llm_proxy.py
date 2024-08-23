@@ -12,7 +12,7 @@ import pyttsx3
 import langdetect
 import random
 
-__version__ = "This is version v0.4.0 (build: 38) by rheiger@icloud.com on 2024-08-23 00:07:04"
+__version__ = "This is version v0.4.1 (build: 39) by rheiger@icloud.com on 2024-08-23 02:36:50"
 
 def sanitize_filename(name):
     # Remove any characters that aren't alphanumeric, underscore, or hyphen
@@ -20,73 +20,79 @@ def sanitize_filename(name):
     # Limit to 24 characters
     return sanitized[:32]
 
-def handle_client(client_socket, partner_socket, hello_message=None, transcript_file=None, session_name=None, mirror_stdout=False, max_messages=0, logger=None, debug=False, tts=False):
+def handle_client(client_socket, partner_socket, hello_message=None, transcript_file=None, session_name=None, mirror_stdout=False, max_messages=0, logger=None, debug=False, tts=False, other_voice=None):
     persona_name = None
     persona_lang = None
     persona_model = None
+    persona_gender = None
     tts_engine = None
+    selected_voice = None
 
     # Wait for the /iam message
     while not persona_name:
         data = client_socket.recv(4096).decode('utf-8').strip()
         if data.startswith('/iam:'):
             logger.debug(f"Received /iam message: {data}")
-            match = re.match(r'/iam:\s?(.*?)(?:\s+\((.*?)\))?\.(.*)', data)
+            match = re.match(r'/iam:\s?(.*?)(?:\s+\((.*?)\))?\s*(?:\[(.*?)\])?\.(.*)', data)
             if match:
                 persona_name = match.group(1)
                 persona_lang = match.group(2) if match.group(2) else "--"
-                persona_model = match.group(3) if match.group(3) else "Unknown_model"
-                logger.info(f"Received persona name: {persona_name}, language: {persona_lang}")
+                persona_gender = match.group(3) if match.group(3) else "--"
+                persona_model = match.group(4) if match.group(4) else "Unknown_model"
+                logger.info(f"Received persona name: {persona_name}, language: {persona_lang}, gender: {persona_gender}")
             else:
                 logger.warning(f"Invalid /iam message format: '{data}'")
                 persona_name = "Unknown"
-                persona_lang = ""
+                persona_lang = "--"
+                persona_gender = "--"
                 persona_model = "Unknown_model"
             break
     
     if tts:
         tts_engine = pyttsx3.init()
-        if persona_lang:
-            try:
-                voices = tts_engine.getProperty('voices')
-                logger.debug(f"Available TTS voices: {voices}")
-                matching_voices = [v for v in voices if v.languages and persona_lang.lower() in [l.lower() for l in v.languages]]
-                if matching_voices:
-                    if 'female' in persona_name.lower():
-                        female_voices = [v for v in matching_voices if 'female' in v.gender.lower()]
-                        if female_voices:
-                            tts_engine.setProperty('voice', female_voices[0].id)
-                    else:
-                        tts_engine.setProperty('voice', matching_voices[0].id)
-            except Exception as e:
-                logger.warning(f"Failed to set TTS voice: {e}")
-                try:
-                    voices = tts_engine.getProperty('voices')
-                    if voices:
-                        random_voice = random.choice(voices)
-                        tts_engine.setProperty('voice', random_voice.id)
-                        logger.info(f"Assigned random voice: {random_voice.name}")
-                    else:
-                        logger.warning("No voices available for TTS")
-                except Exception as e:
-                    logger.error(f"Failed to assign random voice: {e}")
-        else:
-            try:
-                voices = tts_engine.getProperty('voices')
-                english_voices = [v for v in voices if v.languages and 'en' in [l.lower() for l in v.languages]]
-                if english_voices:
-                    tts_engine.setProperty('voice', english_voices[0].id)
-                    logger.info(f"Assigned English voice: {english_voices[0].name}")
-                else:
-                    logger.warning("No English voices available, using default voice")
-            except Exception as e:
-                logger.error(f"Failed to set English voice: {e}")
+        try:
+            # From other_tts_engine, get the currently configured voice and assign the voice.id to other_voice_id
+            logger.debug(f"other_voice = {other_voice}")
+            voices = tts_engine.getProperty('voices')
+            matching_voices = []
+            
+            logger.debug(f"persona_lang = {persona_lang}")
+            if persona_lang != "--":
+                matching_voices = [v for v in voices if any(persona_lang.lower() in lang.lower() for lang in v.languages) and v.id not in [other_voice.id if other_voice else ""]]
+            
+            if not matching_voices:
+                matching_voices = voices
+            
+            if persona_gender.lower() == 'f':
+                gender_voices = [v for v in matching_voices if 'female' in str(v.gender).lower() and 'male' not in str(v.gender).lower()]
+            elif persona_gender.lower() == 'm':
+                gender_voices = [v for v in matching_voices if 'male' in str(v.gender).lower() and 'female' not in str(v.gender).lower()]
+            else:
+                gender_voices = [v for v in matching_voices if 'neuter' in str(v.gender).lower()]
+                if len(gender_voices) == 0:
+                    gender_voices = matching_voices
+
+            if debug:
+                for voice in gender_voices:
+                    logger.debug(f"FinalMatchingVoice: {voice.name}, ID: {voice.id}, Gender: {voice.gender}, Languages: {voice.languages}")
+            
+            if gender_voices:
+                selected_voice = random.choice(gender_voices)
+                tts_engine.setProperty('voice', selected_voice.id)
+                logger.info(f"Assigned voice: {selected_voice.name} ({selected_voice.languages}) [{selected_voice.gender}] to {persona_name}")
+            else:
+                logger.warning("No matching voices available, using default voice")
+        except Exception as e:
+            logger.error(f"Failed to set voice: {e}")
 
     if hello_message:
         client_socket.send(hello_message.encode() + b'\n')
         logger.info(f"Sent hello message: {hello_message} to {client_socket.getpeername()}")
+
+    if debug:
+        logger.debug(f"Determined for persona {persona_name} language={persona_lang} gender={persona_gender} using voice {selected_voice.name if selected_voice else 'None'}")
     
-    return persona_name, persona_lang, persona_model, tts_engine
+    return persona_name, persona_lang, persona_model, persona_gender, tts_engine, selected_voice
 
 def filter_md(s: str) -> str:
     """Escape markdown instructions from a string."""
@@ -177,6 +183,8 @@ def start_proxy(config, mirror_stdout, max_messages, logger, no_transcript, debu
         model2 = None
         tts_engine1 = None
         tts_engine2 = None
+        gender1 = None
+        gender2 = None
 
         try:
             client1, addr1 = server.accept()
@@ -188,8 +196,8 @@ def start_proxy(config, mirror_stdout, max_messages, logger, no_transcript, debu
             iso_date = datetime.datetime.now().isoformat()
             
             send_hello_to_first = True # Alternatively use False or random.choice([True, False])
-            persona1,lang1,model1, tts_engine1 = handle_client(client1, client2, hello if send_hello_to_first else None, None, None, mirror_stdout, max_messages, logger, debug, tts)
-            persona2,lang2,model2, tts_engine2 = handle_client(client2, client1, hello if not send_hello_to_first else None, None, None, mirror_stdout, max_messages, logger, debug, tts)
+            persona1,lang1,model1, gender1, tts_engine1, voice1 = handle_client(client1, client2, hello if send_hello_to_first else None, None, None, mirror_stdout, max_messages, logger, debug, tts, None)
+            persona2,lang2,model2, gender2, tts_engine2, voice2 = handle_client(client2, client1, hello if not send_hello_to_first else None, None, None, mirror_stdout, max_messages, logger, debug, tts, voice1)
 
             if not no_transcript:
                 safe_persona1 = sanitize_filename(persona1)

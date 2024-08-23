@@ -6,7 +6,7 @@ from openai import OpenAI
 from typing import Tuple
 import sys
 
-__version__ = "This is version v0.4.0 (build: 38) by rheiger@icloud.com on 2024-08-23 00:07:04"
+__version__ = "This is version v0.4.1 (build: 39) by rheiger@icloud.com on 2024-08-23 02:36:50"
 
 def load_config(config_file: str) -> Dict[str, Any]:
     """Load configuration from a YAML file."""
