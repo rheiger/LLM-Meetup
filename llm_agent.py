@@ -3,7 +3,7 @@ import yaml
 import importlib
 import sys
 
-__version__ = "This is version v0.4.3 (build: 41) by rheiger@icloud.com on 2024-08-23 03:27:52"
+__version__ = "This is version v0.4.4 (build: 42) by rheiger@icloud.com on 2024-08-24 02:06:34"
 
 def load_config(config_file):
     with open(config_file, 'r') as file:
@@ -28,7 +28,7 @@ def main():
     config = load_config(args.config)
 
     if args.version:
-        print(f"Ollama Agent ({sys.argv[0]}) {__version__}")
+        print(f"LMStudio Agent ({sys.argv[0]}) {__version__}")
         exit(0)
 
     if not args.prompt_file:

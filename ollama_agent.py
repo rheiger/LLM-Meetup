@@ -9,7 +9,7 @@ import json
 import random
 import sys
 
-__version__ = "This is version v0.4.3 (build: 41) by rheiger@icloud.com on 2024-08-23 03:27:52"
+__version__ = "This is version v0.4.4 (build: 42) by rheiger@icloud.com on 2024-08-24 02:06:34"
 
 def load_config(config_file: str) -> Dict[str, Any]:
     """Load configuration from a YAML file."""
@@ -141,7 +141,7 @@ def handle_client(s: socket.socket, ollama_client: ollama.Client, config: Dict[s
             logging.exception(f"Error: {e}")
             break
     if not keep_looping:
-        logging.info(f"Terminating conversation after receiving /by, closing connection ({s})")
+        logging.info(f"Terminating conversation after receiving /bye, closing connection ({s})")
         if s.fileno() != -1:
             s.sendall("/end".encode('utf-8'))
         else:

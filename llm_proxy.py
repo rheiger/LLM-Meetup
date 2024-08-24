@@ -12,7 +12,7 @@ import pyttsx3
 import langdetect
 import random
 
-__version__ = "This is version v0.4.3 (build: 41) by rheiger@icloud.com on 2024-08-23 03:27:52"
+__version__ = "This is version v0.4.4 (build: 42) by rheiger@icloud.com on 2024-08-24 02:06:34"
 
 def sanitize_filename(name):
     # Remove any characters that aren't alphanumeric, underscore, or hyphen
@@ -276,7 +276,7 @@ def start_proxy(config, mirror_stdout, max_messages, logger, no_transcript, debu
                                 content1 = format_message(message)
                                 if tts_engine1:
                                     tts_engine1.setProperty('voice',voice1.id)
-                                    tts_engine1.say(message)
+                                    tts_engine1.say(message) # TODO: Convert markdown for bold and italic to corresponding HTML(?) tags suitable for TTS
                                     tts_engine1.runAndWait()
 
                             last_time = datetime.datetime.now()
@@ -298,7 +298,7 @@ def start_proxy(config, mirror_stdout, max_messages, logger, no_transcript, debu
                                 content2 = format_message(message)
                                 if tts_engine2:
                                     tts_engine2.setProperty('voice',voice2.id)
-                                    tts_engine2.say(message)
+                                    tts_engine2.say(message) # TODO: Convert markdown for bold and italic to corresponding HTML(?) tags suitable for TTS
                                     tts_engine2.runAndWait()
 
                             last_time = datetime.datetime.now()
