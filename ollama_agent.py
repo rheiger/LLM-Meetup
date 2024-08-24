@@ -9,7 +9,7 @@ import json
 import random
 import sys
 
-__version__ = "This is version v0.4.4 (build: 42) by rheiger@icloud.com on 2024-08-24 02:06:34"
+__version__ = "This is version v0.4.5 (build: 43) by rheiger@icloud.com on 2024-08-24 02:43:14"
 
 def load_config(config_file: str) -> Dict[str, Any]:
     """Load configuration from a YAML file."""
@@ -104,7 +104,7 @@ def handle_client(s: socket.socket, ollama_client: ollama.Client, config: Dict[s
                 break
             if data.lower().startswith("/bye") or data.lower().endswith("/bye"):
                 logging.warning(f"Received /bye, Finishing the conversation ({data})")
-
+                keep_looping = False
             # Needed to keep context for ollama
             chat_history.append({"role": "user", "content": data})
 
@@ -136,6 +136,8 @@ def handle_client(s: socket.socket, ollama_client: ollama.Client, config: Dict[s
 
             # Now send what the LLM created as reply
             msg = f"{prefix}{filter_md(response['message']['content'])}"
+            if not keep_looping:
+                msg += "\n/end"
             s.sendall(msg.encode('utf-8'))
         except (socket.error, ollama.ResponseError) as e:
             logging.exception(f"Error: {e}")

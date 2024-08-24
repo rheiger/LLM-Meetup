@@ -9,7 +9,7 @@ from typing import Tuple
 import sys
 import logging
 
-__version__ = "This is version v0.4.4 (build: 42) by rheiger@icloud.com on 2024-08-24 02:06:34"
+__version__ = "This is version v0.4.5 (build: 43) by rheiger@icloud.com on 2024-08-24 02:43:14"
 
 def load_config(config_file: str) -> Dict[str, Any]:
     with open(config_file, 'r') as f:
@@ -53,6 +53,7 @@ def handle_client(s: socket.socket, openai_client: openai.Client, config: Dict[s
                 break
             if data.lower().startswith("/bye") or data.lower().endswith("/bye"):
                 logging.warning(f"Received /bye, Finishing the conversation ({data})")
+                keep_looping = False
             data = data.replace("/start","Hello") if msg_count == 0 else data.replace("/start",".") # remove the start sequence from the prompt
 
             response = openai_client.chat.completions.create(
@@ -64,11 +65,13 @@ def handle_client(s: socket.socket, openai_client: openai.Client, config: Dict[s
                 max_tokens=config.get('max_tokens', 1000),
                 temperature=config.get('temperature', 0.7),
             )
-            reply = response.choices[0].message.content.encode('utf-8').strip() + b'\n'
+            reply = response.choices[0].message.content.strip() + '\n'
             if not quiet:
                 print(f"Inferred: {reply}\n================\n")
+            if not keep_looping:
+                reply += "/end\n"
             logging.debug(f"Reply with '{reply}'")
-            s.sendall(reply)
+            s.sendall(reply.encode('utf-8'))
             msg_count += 1
         except Exception as e:
             logging.exception(f"Error: {e}")

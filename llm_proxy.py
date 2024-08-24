@@ -12,7 +12,7 @@ import pyttsx3
 import langdetect
 import random
 
-__version__ = "This is version v0.4.4 (build: 42) by rheiger@icloud.com on 2024-08-24 02:06:34"
+__version__ = "This is version v0.4.5 (build: 43) by rheiger@icloud.com on 2024-08-24 02:43:14"
 
 def sanitize_filename(name):
     # Remove any characters that aren't alphanumeric, underscore, or hyphen
