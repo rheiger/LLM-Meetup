@@ -9,7 +9,7 @@ def update_version(content, file_path):
     # Get the current version
     version_match = re.search(r'v(\d+\.\d+\.(-?\d+)) \(build: (\d+)\)', content)
     if version_match:
-        print(f"Found version {version_match} in {file_path}")
+        print(f"\n\nFound version {version_match} in {file_path}")
         version_str = version_match.group(1)
         patch_str = version_match.group(2)
         version_parts = version_str.split('.')
@@ -27,11 +27,11 @@ def update_version(content, file_path):
 
     # Update the version line
     current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    new_version_line = f"This is version v{version} (build: {build}) by {user_email} on {current_time}"
+    new_version_line = f"v{version} (build: {build}) by {user_email} on {current_time}"
 
     # Replace the old version line with the new one for README.md
     if file_path.lower() == 'readme.md':
-        updated_content = re.sub(r'This is version.*', new_version_line, content)
+        updated_content = re.sub(r'This is version.*', f'This is version: {new_version_line}', content)
     else:
         # Update __version__ in Python scripts using the same version as README.md
         updated_content = re.sub(r'__version__\s*=\s*[\'"].*?[\'"]', f'__version__ = "{new_version_line}"', content)
@@ -45,16 +45,27 @@ def process_file(file_path, readme_version=None):
     if file_path.lower() == 'readme.md':
         updated_content, version, build, user_email, current_time = update_version(content, file_path)
         readme_version = (version, build, user_email, current_time)
+        print(f"Updated version in {file_path} to {version} (build: {build}) updated_content: {updated_content[:80]}, readme_version: {readme_version}")
     elif file_path.endswith('.py') and '__version__' in content:
         if readme_version:
             version, build, user_email, current_time = readme_version
             new_version_line = f"This is version v{version} (build: {build}) by {user_email} on {current_time}"
             updated_content = re.sub(r'__version__\s*=\s*[\'"].*?[\'"]', f'__version__ = "{new_version_line}"', content)
+            print(f"Updated version in {file_path} to {version} (build: {build}) updated_content: {updated_content[:80]}, readme_version: {readme_version}")
         else:
             updated_content, version, build, user_email, current_time = update_version(content, file_path)
+            print(f"Updated version in {file_path} to {version} (build: {build}) updated_content: {updated_content[:80]}, readme_version: {readme_version}")
+    else:
+            updated_content = None
+            print(f"Skipping {file_path} as it does not contain __version__ or is not README.md")
+            exit(1)
 
-    with open(file_path, 'w') as file:
-        file.write(updated_content)
+    if updated_content:
+        with open(file_path, 'w') as file:
+            file.write(updated_content)
+    else:
+        print(f"Skipping {file_path} as it does not contain __version__ or is not README.md")
+        exit(1)
 
     # Stage the modified file
     subprocess.call(['git', 'add', file_path])
@@ -66,10 +77,14 @@ def process_file(file_path, readme_version=None):
 # Process README.md
 readme_version = process_file('README.md')
 
+# read the .gitignore file
+with open('.gitignore', 'r') as f:
+    gitignore_content = f.read()
+
 # Process Python scripts
 for root, dirs, files in os.walk('.'):
-    dirs[:] = [d for d in dirs if not d.startswith('.')]
+    dirs[:] = [d for d in dirs if not (d.startswith('.') or d in gitignore_content)]
     for file in files:
-        if not file.startswith('.') and file.endswith('.py'):
+        if not file.startswith('.') and file.endswith('.py') and file not in  gitignore_content:
             file_path = os.path.join(root, file)
             process_file(file_path, readme_version)
