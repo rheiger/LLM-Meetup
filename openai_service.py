@@ -1,15 +1,15 @@
 import argparse
 import yaml
-from typing import Dict, Any, List
+from typing import Dict, Any
 import socket
-from anthropic import Anthropic, HUMAN_PROMPT, AI_PROMPT
+import openai
 from dotenv import load_dotenv
 import os
 from typing import Tuple
 import sys
 import logging
 
-__version__ = "This is version v0.4.5 (build: 43) by rheiger@icloud.com on 2024-08-24 02:43:14"
+__version__ = "This is version v0.4.11 (build: 49) by rheiger@icloud.com on 2024-08-25 22:29:26"
 
 def load_config(config_file: str) -> Dict[str, Any]:
     with open(config_file, 'r') as f:
@@ -22,7 +22,7 @@ def load_system_prompt(prompt_file: str) -> Tuple[str, str]:
         persona_name = first_line.split(':')[-1].strip()
         return content, persona_name
 
-def handle_client(s: socket.socket, anthropic_client: Anthropic, config: Dict[str, Any], system_prompt: str, persona_name: str, quiet: bool) -> None:
+def handle_client(s: socket.socket, openai_client: openai.Client, config: Dict[str, Any], system_prompt: str, persona_name: str, quiet: bool) -> None:
     # Send persona name to proxy
     logging.debug(f"Sending persona name to proxy: {persona_name}.{config['model']}")
     s.sendall(f"/iam: {persona_name}.{config['model']}\n".encode('utf-8'))
@@ -56,16 +56,16 @@ def handle_client(s: socket.socket, anthropic_client: Anthropic, config: Dict[st
                 keep_looping = False
             data = data.replace("/start","Hello") if msg_count == 0 else data.replace("/start",".") # remove the start sequence from the prompt
 
-            response = anthropic_client.messages.create(
+            response = openai_client.chat.completions.create(
                 model=config['model'],
-                system=system_prompt,
                 messages=[
+                    {"role": "system", "content": system_prompt},
                     {"role": "user", "content": data}
                 ],
                 max_tokens=config.get('max_tokens', 1000),
                 temperature=config.get('temperature', 0.7),
             )
-            reply = response.content[0].text.strip() + '\n'
+            reply = response.choices[0].message.content.strip() + '\n'
             if not quiet:
                 print(f"Inferred: {reply}\n================\n")
             if not keep_looping:
@@ -84,9 +84,9 @@ def handle_client(s: socket.socket, anthropic_client: Anthropic, config: Dict[st
             logging.warning("Socket is already closed, could not send /end")
 
 def main():
-    parser = argparse.ArgumentParser(description="Anthropic Claude TCP Server")
-    parser.add_argument("prompt_file", help="Markdown file containing the system prompt")
-    parser.add_argument("-c", "--config", default="config/anthropic.yml", help="YAML configuration file")
+    parser = argparse.ArgumentParser(description="OpenAI GPT TCP Server")
+    parser.add_argument("prompt_file", nargs="?", help="Markdown file containing the system prompt")
+    parser.add_argument("-c", "--config", default="config/openai.yml", help="YAML configuration file")
     parser.add_argument("-H", "--host", default="127.0.0.1", help="TCP server host")
     parser.add_argument("-p", "--port", type=int, default=18888, help="TCP server port")
     parser.add_argument("-l","--logfile", help="Log file path")
@@ -96,7 +96,7 @@ def main():
     args = parser.parse_args()
 
     if args.version:
-        print(f"Anthropic Agent ({sys.argv[0]}) {__version__}")
+        print(f"OpenAI Agent ({sys.argv[0]}) {__version__}")
         exit(0)
 
     if not args.prompt_file:
@@ -113,20 +113,21 @@ def main():
     logging.getLogger("httpx").setLevel(logging.WARNING)
 
     config = load_config(args.config)
+
     system_prompt, persona_name = load_system_prompt(args.prompt_file)
 
     load_dotenv()  # This will load variables from a .env file if it exists
-    api_key = os.getenv("ANTHROPIC_API_KEY")
+    api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
-        raise ValueError("ANTHROPIC_API_KEY not found in environment variables")
+        raise ValueError("OPENAI_API_KEY not found in environment variables")
 
-    anthropic_client = Anthropic(api_key=api_key)
+    openai_client = openai.Client(api_key=api_key)
     
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         try:
             s.connect((args.host, args.port))
             logging.info(f"Connected to {args.host}:{args.port}")
-            handle_client(s, anthropic_client, config, system_prompt, persona_name,args.quiet)
+            handle_client(s, openai_client, config, system_prompt, persona_name, args.quiet)
         except socket.error as e:
             logging.exception(f"Socket error: {e}")
 

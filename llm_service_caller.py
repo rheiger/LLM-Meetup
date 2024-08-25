@@ -3,7 +3,7 @@ import yaml
 import importlib
 import sys
 
-__version__ = "This is version v0.4.5 (build: 43) by rheiger@icloud.com on 2024-08-24 02:43:14"
+__version__ = "This is version v0.4.11 (build: 49) by rheiger@icloud.com on 2024-08-25 22:29:26"
 
 def load_config(config_file):
     with open(config_file, 'r') as file:
@@ -11,9 +11,9 @@ def load_config(config_file):
     return config
 
 def main():
-    parser = argparse.ArgumentParser(description="LLM Agent Selector")
+    parser = argparse.ArgumentParser(description="LLM Service Selector")
     parser.add_argument("prompt_file", nargs="?", help="Markdown file containing the system prompt")
-    parser.add_argument("-c", "--config", default="config/agent.yml", help="YAML configuration file")
+    parser.add_argument("-c", "--config", default="config/llm_service_caller_cconfig.yml", help="YAML configuration file")
     parser.add_argument("-s", "--service", choices=["lmstudio", "openai", "ollama", "anthropic"], help="Select the service to use")
     parser.add_argument("-H", "--host", default="127.0.0.1", help="TCP server host")
     parser.add_argument("-p", "--port", type=int, default=18888, help="TCP server port")
@@ -44,7 +44,7 @@ def main():
         parser.error("Service must be specified either in the config file or as a command-line argument")
 
     # Import the appropriate agent module
-    agent_module = importlib.import_module(f"{args.service}_agent")
+    agent_module = importlib.import_module(f"{args.service}_service")
 
     # Prepare arguments for the agent
     agent_args = [args.prompt_file, "-c", args.config, "-H", args.host, "-p", str(args.port)]

@@ -12,7 +12,7 @@ import pyttsx3
 import langdetect
 import random
 
-__version__ = "This is version v0.4.5 (build: 43) by rheiger@icloud.com on 2024-08-24 02:43:14"
+__version__ = "This is version v0.4.11 (build: 49) by rheiger@icloud.com on 2024-08-25 22:29:26"
 
 def sanitize_filename(name):
     # Remove any characters that aren't alphanumeric, underscore, or hyphen
@@ -152,6 +152,61 @@ def filter_md(s: str) -> str:
 
     return converted_text
 
+def convert_markdown_to_speech(markdown_text, debug=False):
+    # Convert markdown to speech notation for ttysx3 engine
+    
+    # Remove or replace common markdown elements
+    logger.debug(f"Converting markdown to speech: {markdown_text}")
+    speech_text = markdown_text
+
+    speech_text = re.sub(r'\'(.*?)\'', r'<emphasis level="moderate"><prosody rate="slow" pitch="low">\1</prosody></emphasis><break time="100ms"/>', speech_text)
+    speech_text = re.sub(r'"(.*?)"', r'<emphasis level="moderate"><prosody rate="slow" pitch="low">\1</prosody></emphasis><break time="100ms"/>', speech_text)
+
+    # Convert headers to emphasized text
+    speech_text = re.sub(r'^#{1,6}\s*(.*?)$', r'<emphasis level="strong"><prosody rate="slow" pitch="default">\1</prosody></emphasis><break time="1000ms"/>', speech_text, flags=re.MULTILINE)
+
+    # Convert bold and italic
+    speech_text = re.sub(r'\*\*(.*?)\*\*', r'<emphasis level="strong">\1</emphasis>', speech_text)
+    speech_text = re.sub(r'\*(.*?)\*', r'<emphasis level="reduced">\1</emphasis>', speech_text)
+    speech_text = re.sub(r'__(.*?)__', r'<emphasis level="strong">\1</emphasis>', speech_text)
+    speech_text = re.sub(r'_(.*?)_', r'<emphasis level="reduced">\1</emphasis>', speech_text)
+
+    # Convert lists to simple text
+    speech_text = re.sub(r'^\s*[-*+]\s*(.*?)$', r'\1. ', speech_text, flags=re.MULTILINE)
+    speech_text = re.sub(r'^\s*(\d+\.)\s*(.*?)$', r'\1 \2. ', speech_text, flags=re.MULTILINE)
+    logger.debug(f"After list handling notation:\n{speech_text}")
+
+    # Remove links, keeping only the text
+    speech_text = re.sub(r'\[([^\]]+)\]\([^\)]+\)', r'\1', speech_text)
+    logger.debug(f"After links notation:\n{speech_text}")
+
+    # Remove any remaining special characters
+    # speech_text = re.sub(r'[#_*~`>|]', '', speech_text)
+    # logger.debug(f"After remaining special characters notation:\n{speech_text}")
+
+    # Add pauses for better speech flow
+    speech_text = speech_text.replace('...', '<break time="300ms"/>')
+    speech_text = speech_text.replace('…', '<break time="300ms"/>')
+    speech_text = speech_text.replace('.\n\n', '.<break time="700ms"/>')
+    speech_text = speech_text.replace('.', '.<break time="300ms"/>')
+    speech_text = speech_text.replace('!', '!<break time="400ms"/>')
+    speech_text = speech_text.replace('?', '?<break time="300ms"/>')
+    speech_text = speech_text.replace(';', ';<break time="150ms"/>')
+    speech_text = speech_text.replace(':', ';<break time="200ms"/>')
+    speech_text = speech_text.replace(',', ',<break time="100ms"/>')
+    speech_text = speech_text.replace('/start', '<lang xml:lang="en-US"><prosody volume="soft" pitch="low" rate="slow">Start of conversation</prosody></lang><break time="600ms"/>')
+    speech_text = speech_text.replace('/bye', '<lang xml:lang="en-US"><prosody volume="default" pitch="default" rate="slow">Good bye.</prosody></lang>')
+    speech_text = speech_text.replace('/end', '<lang xml:lang="en-US"><prosody volume="soft" pitch="low" rate="slow">Termination of conversation</prosody></lang><break time="600ms"/>')
+    speech_text = speech_text.replace('/stop', '<lang xml:lang="en-US"><prosody volume="soft" pitch="low" rate="slow">Request conversation termination</prosody></lang><break time="600ms"/>')
+    speech_text = speech_text.replace('/help', '<lang xml:lang="en-US"><prosody volume="soft" pitch="low" rate="slow">Unimplemented request for help</prosody></lang><break time="600ms"/>')
+    logger.debug(f"Converted markdown to speech notation:\n{speech_text}")
+    # Wrap the entire text in SSML tags
+    speech_text = f'<speak>{speech_text}</speak>'
+
+    logger.debug(f"Converted markdown to speech notation:\n{speech_text}")
+
+    return speech_text
+
 def format_message(message, debug=False):
     if debug and message:
         print(f"message='{message}'")
@@ -229,7 +284,7 @@ def start_proxy(config, mirror_stdout, max_messages, logger, no_transcript, debu
                 transcript_file.write('th { background-color: #f2f2f2; }\n')
                 transcript_file.write('</style>\n</head>\n<body>\n')
                 transcript_file.write('<table>\n')
-                transcript_file.write(f'<tr><th>Count</th><th>Delta</th><th>{persona1}</th><th>{persona2}</th></tr>\n')
+                transcript_file.write(f'<tr><th>Count</th><th>Delta</th><th>{persona1}[{gender1}] ({model1})</th><th>{persona2}[{gender2}] ({model2})</th></tr>\n')
 
             message_count = 0
             last_time = datetime.datetime.now()
@@ -276,7 +331,7 @@ def start_proxy(config, mirror_stdout, max_messages, logger, no_transcript, debu
                                 content1 = format_message(message)
                                 if tts_engine1:
                                     tts_engine1.setProperty('voice',voice1.id)
-                                    tts_engine1.say(message) # TODO: Convert markdown for bold and italic to corresponding HTML(?) tags suitable for TTS
+                                    tts_engine1.say(convert_markdown_to_speech(message,debug=debug)) # TODO: Convert markdown for bold and italic to corresponding HTML(?) tags suitable for TTS
                                     tts_engine1.runAndWait()
 
                             last_time = datetime.datetime.now()
@@ -298,7 +353,7 @@ def start_proxy(config, mirror_stdout, max_messages, logger, no_transcript, debu
                                 content2 = format_message(message)
                                 if tts_engine2:
                                     tts_engine2.setProperty('voice',voice2.id)
-                                    tts_engine2.say(message) # TODO: Convert markdown for bold and italic to corresponding HTML(?) tags suitable for TTS
+                                    tts_engine2.say(convert_markdown_to_speech(message,debug=debug)) # TODO: Convert markdown for bold and italic to corresponding HTML(?) tags suitable for TTS
                                     tts_engine2.runAndWait()
 
                             last_time = datetime.datetime.now()
@@ -318,8 +373,9 @@ def start_proxy(config, mirror_stdout, max_messages, logger, no_transcript, debu
                             raise Exception("Max messages reached")
 
                     except Exception as e:
-                        logger.debug(f"Error handling client: {e}")
-                        raise
+                        if str(e) != "Max messages reached":
+                            logger.debug(f"Error handling client: {e}")
+                            raise
 
         except Exception as e:
             logger.exception(f"Connection ended: {e}")
