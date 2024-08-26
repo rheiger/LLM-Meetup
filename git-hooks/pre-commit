@@ -39,6 +39,8 @@ def update_version(content, file_path):
     return updated_content, version, build, user_email, current_time
 
 def process_file(file_path, readme_version=None):
+    version = None
+    build = None
     with open(file_path, 'r') as file:
         content = file.read()
 
@@ -58,19 +60,17 @@ def process_file(file_path, readme_version=None):
     else:
             updated_content = None
             print(f"Skipping {file_path} as it does not contain __version__ or is not README.md")
-            exit(1)
 
     if updated_content:
         with open(file_path, 'w') as file:
             file.write(updated_content)
     else:
         print(f"Skipping {file_path} as it does not contain __version__ or is not README.md")
-        exit(1)
 
     # Stage the modified file
     subprocess.call(['git', 'add', file_path])
 
-    print(f"Updated {file_path} to version {version} (build: {build})")
+    print(f"Updated {file_path} to version {version if version else 'NO-VERSION-FOUND'} (build: {build if build else 'NO-BUILD-FOUND'})")
 
     return readme_version
 
