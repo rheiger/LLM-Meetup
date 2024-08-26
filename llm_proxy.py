@@ -12,7 +12,7 @@ import pyttsx3
 import langdetect
 import random
 
-__version__ = "This is version v0.4.12 (build: 50) by rheiger@icloud.com on 2024-08-25 22:29:59"
+__version__ = "This is version v0.4.17 (build: 55) by rheiger@icloud.com on 2024-08-26 15:14:15"
 
 def sanitize_filename(name):
     # Remove any characters that aren't alphanumeric, underscore, or hyphen
@@ -33,12 +33,15 @@ def handle_client(client_socket, partner_socket, hello_message=None, transcript_
         data = client_socket.recv(4096).decode('utf-8').strip()
         if data.startswith('/iam:'):
             logger.debug(f"Received /iam message: {data}")
-            match = re.match(r'/iam:\s?(.*?)(?:\s+\((.*?)\))?\s*(?:\[(.*?)\])?\.(.*)', data)
+            pattern = r"/iam:\s*(?:(?:Dr\.|Prof\.|Mr\.|Mrs\.|Ms\.)\s*)*(?P<persona_name>\w+\.?(?:\s+\w+)*)\s*(?:\((?P<persona_lang>[^)]+)\))?\s*(?:\[(?P<persona_gender>[^\]]+)\])?\s*(?:\.\s*(?P<persona_model>.*))?"
+            match = re.match(pattern, data)
+
             if match:
-                persona_name = match.group(1)
-                persona_lang = match.group(2) if match.group(2) else "--"
-                persona_gender = match.group(3) if match.group(3) else "--"
-                persona_model = match.group(4) if match.group(4) else "Unknown_model"
+                full_name = match.group(1)
+                persona_name = match.group("persona_name").strip()
+                persona_lang = match.group("persona_lang").strip() if match.group("persona_lang") else "--"
+                persona_gender = match.group("persona_gender") if match.group("persona_gender") else "--"
+                persona_model = match.group("persona_model") if match.group("persona_model") else "Unknown_model"
                 logger.info(f"Received persona name: {persona_name}, language: {persona_lang}, gender: {persona_gender}")
             else:
                 logger.warning(f"Invalid /iam message format: '{data}'")
@@ -59,40 +62,42 @@ def handle_client(client_socket, partner_socket, hello_message=None, transcript_
             logger.debug(f"persona_lang = {persona_lang}")
             if persona_lang != "--":
                 matching_voices = [v for v in voices if any(persona_lang.lower() in lang.lower() for lang in v.languages) and v.id not in [other_voice.id if other_voice else ""]]
-                if debug:
-                    for voice in matching_voices:
-                        logger.debug(f"MatchingVoice for lang={persona_lang}: {voice.name}, ID: {voice.id}, Gender: {voice.gender}, Languages: {voice.languages}")
+                # if debug:
+                #     for voice in matching_voices:
+                #         logger.debug(f"MatchingVoice for lang={persona_lang}: {voice.name}, ID: {voice.id}, Gender: {voice.gender}, Languages: {voice.languages}")
             
             if not matching_voices:
                 matching_voices = voices
             
             if persona_gender.lower() == 'f':
                 gender_voices = [v for v in matching_voices if 'female' in str(v.gender).lower()]
-                if debug:
-                    logger.debug("****** Checking for female voice")
-                    for voice in gender_voices:
-                        logger.debug(f"MatchingFemaleVoice: {voice.name}, ID: {voice.id}, Gender: {voice.gender}, Languages: {voice.languages}")
+                # if debug:
+                #     logger.debug("****** Checking for female voice")
+                #     for voice in gender_voices:
+                #         logger.debug(f"MatchingFemaleVoice: {voice.name}, ID: {voice.id}, Gender: {voice.gender}, Languages: {voice.languages}")
             elif persona_gender.lower() == 'm':
                 gender_voices = [v for v in matching_voices if 'male' in str(v.gender).lower() and 'female' not in str(v.gender).lower()]
-                if debug:
-                    logger.debug("****** Checking for MALE voice")
-                    for voice in gender_voices:
-                        logger.debug(f"MatchingMaleVoice: {voice.name}, ID: {voice.id}, Gender: {voice.gender}, Languages: {voice.languages}")
+                # if debug:
+                #     logger.debug("****** Checking for MALE voice")
+                #     for voice in gender_voices:
+                #         logger.debug(f"MatchingMaleVoice: {voice.name}, ID: {voice.id}, Gender: {voice.gender}, Languages: {voice.languages}")
             else:
                 gender_voices = None
 
             if not gender_voices:
                 gender_voices = [v for v in matching_voices if 'neuter' in str(v.gender).lower()]
-                if debug:
-                    logger.debug("****** Checking for neuter voice")
-                    for voice in gender_voices:
-                        logger.debug(f"MatchingNeuterVoice: {voice.name}, ID: {voice.id}, Gender: {voice.gender}, Languages: {voice.languages}")
+                logger.warning(f"No gender-specific voices found. Selecting a random voice from the list: {gender_voices}")
+                # if debug:
+                #     logger.debug("****** Checking for neuter voice")
+                #     for voice in gender_voices:
+                #         logger.debug(f"MatchingNeuterVoice: {voice.name}, ID: {voice.id}, Gender: {voice.gender}, Languages: {voice.languages}")
                 if len(gender_voices) == 0:
                     gender_voices = matching_voices
+                    logger.warning(f"Absolutely no gender-specific voices found. Selecting a random voice from the list: {gender_voices}")
 
-            if debug:
-                for voice in gender_voices:
-                    logger.debug(f"FinalMatchingVoice: {voice.name}, ID: {voice.id}, Gender: {voice.gender}, Languages: {voice.languages}")
+            # if debug:
+                # for voice in gender_voices:
+                #     logger.debug(f"FinalMatchingVoice: {voice.name}, ID: {voice.id}, Gender: {voice.gender}, Languages: {voice.languages}")
             
             if gender_voices:
                 selected_voice = random.choice(gender_voices)
@@ -155,51 +160,92 @@ def filter_md(s: str) -> str:
 def convert_markdown_to_speech(markdown_text, debug=False):
     # Convert markdown to speech notation for ttysx3 engine
     
+    emoji_pattern = re.compile(
+    r'([\U0001F600-\U0001F64F]'  # Emoticons
+    r'|[\U0001F300-\U0001F5FF]'  # Symbols & Pictographs
+    r'|[\U0001F680-\U0001F6FF]'  # Transport & Map Symbols
+    r'|[\U0001F700-\U0001F77F]'  # Alchemical Symbols
+    r'|[\U0001F780-\U0001F7FF]'  # Geometric Shapes Extended
+    r'|[\U0001F800-\U0001F8FF]'  # Supplemental Arrows-C
+    r'|[\U0001F900-\U0001F9FF]'  # Supplemental Symbols and Pictographs
+    r'|[\U0001FA00-\U0001FA6F]'  # Chess Symbols
+    r'|[\U0001FA70-\U0001FAFF]'  # Symbols and Pictographs Extended-A
+    r'|[\U00002600-\U000026FF]'  # Miscellaneous Symbols
+    r'|[\U00002700-\U000027BF]'  # Dingbats
+    r'|[\U0001F1E6-\U0001F1FF]'  # Flags (iOS)
+    r'|[\U0001F900-\U0001F9FF]'  # Supplemental Symbols and Pictographs
+    r'|[\U0001F300-\U0001F5FF]'  # Misc Symbols and Pictographs
+    r'|[\U0001F680-\U0001F6FF]'  # Transport and Map
+    r'|[\U0001F700-\U0001F77F]'  # Alchemical Symbols
+    r'|[\U0001F780-\U0001F7FF]'  # Geometric Shapes Extended
+    r'|[\U0001F800-\U0001F8FF]'  # Supplemental Arrows-C
+    r'|[\U0001F1E6-\U0001F1FF]'  # Regional Indicator Symbols
+    r'|[\U0001F201-\U0001F251]'  # Enclosed Ideographic Supplement
+    r'|[\U00002500-\U00002BEF]'  # Chinese characters
+    r'|[\U00002702-\U000027B0]'  # Dingbats
+    r'|[\U000024C2-\U0001F251]'  # Enclosed Characters
+    r'|[\U0001F600-\U0001F636]'  # Emoticons
+    r'|[\U0001F681-\U0001F6C5]'  # Transport and Map
+    r'|[\U0001F30D-\U0001F567]'  # Weather, clocks, etc.
+    r'|\U0001F4AF|\U0001F4A2|\U0001F4A5|\U0001F4AB|\U0001F4A6|\U0001F4A8|'  # Special Cases for Popular Emojis
+    r'[\U0001F1E0-\U0001F1FF])'  # Flags
+)
+
     # Remove or replace common markdown elements
     logger.debug(f"Converting markdown to speech: {markdown_text}")
     speech_text = markdown_text
 
-    speech_text = re.sub(r'\'(.*?)\'', r'<emphasis level="moderate"><prosody rate="slow" pitch="low">\1</prosody></emphasis><break time="100ms"/>', speech_text)
-    speech_text = re.sub(r'"(.*?)"', r'<emphasis level="moderate"><prosody rate="slow" pitch="low">\1</prosody></emphasis><break time="100ms"/>', speech_text)
-
+    # IMPORTANT: We really need to handle double quotes as first instance to make sure we don't mess up quotes within SSML tags
+    # NOTE: Probably, using this extended regex would prevent the problem from happening. The regex is checking for double quotes at the beginning of a line or whitespace followed by a double quote and end of string or followed by whitespace.
+    speech_text = re.sub(r'(?:(^")|(\s"))(.*?)(")(?=\s|\.|!|,|;|:|\?|$)', r'<emphasis level="moderate"><prosody rate="slow" pitch="low">\3</prosody></emphasis><break time="100ms"/>', speech_text)
+    speech_text = re.sub(r'„(.*?)“', r'<emphasis level="moderate"><prosody rate="slow" pitch="low">\1</prosody></emphasis><break time="100ms"/>', speech_text)
+    speech_text = re.sub(r'«(.*?)»', r'<emphasis level="moderate"><prosody rate="slow" pitch="low">\1</prosody></emphasis><break time="100ms"/>', speech_text)
+    speech_text = re.sub(r"(?:(^')|(\s'))(.*?)(')(?=\s|\.|!|,|;|:|\?|$)", r'<emphasis level="moderate"><prosody rate="slow" pitch="low">\3</prosody></emphasis><break time="100ms"/>', speech_text)
+    speech_text = re.sub(emoji_pattern, r'<emphasis level="moderate"><prosody rate="slow" pitch="low">\1</prosody></emphasis><break time="75ms"/>', speech_text)
     # Convert headers to emphasized text
     speech_text = re.sub(r'^#{1,6}\s*(.*?)$', r'<emphasis level="strong"><prosody rate="slow" pitch="default">\1</prosody></emphasis><break time="1000ms"/>', speech_text, flags=re.MULTILINE)
 
     # Convert bold and italic
-    speech_text = re.sub(r'\*\*(.*?)\*\*', r'<emphasis level="strong">\1</emphasis>', speech_text)
-    speech_text = re.sub(r'\*(.*?)\*', r'<emphasis level="reduced">\1</emphasis>', speech_text)
-    speech_text = re.sub(r'__(.*?)__', r'<emphasis level="strong">\1</emphasis>', speech_text)
-    speech_text = re.sub(r'_(.*?)_', r'<emphasis level="reduced">\1</emphasis>', speech_text)
+    speech_text = re.sub(r'\*\*(.*?)\*\*', r'<emphasis level="strong">\1</emphasis><break time="200ms"/>', speech_text)
+    speech_text = re.sub(r'\*(.*?)\*', r'<prosody volume="soft" pitch="default" rate="slow">\1</prosody><break time="250ms"/>', speech_text)
+    speech_text = re.sub(r'__(.*?)__', r'<emphasis level="strong">\1</emphasis><break time="200ms"/>', speech_text)
+    speech_text = re.sub(r'_(.*?)_', r'<prosody volume="soft" pitch="default" rate="slow">\1</prosody><break time="250ms"/>', speech_text)
+    # speech_text = re.sub(r'\((.*?)\)', r'<prosody volume="soft" pitch="default" rate="slow">\1</prosody><break time="200ms"/>', speech_text) # Heavily depends on whether it is description of action or not in parens '()'
+
+    # Handle titles like Prof. Dr. etc.
+    speech_text = re.sub(r'\b(Dr|Mr|Mrs|Ms|Prof)\.', r'\1<dot>', speech_text)
 
     # Convert lists to simple text
     speech_text = re.sub(r'^\s*[-*+]\s*(.*?)$', r'\1. ', speech_text, flags=re.MULTILINE)
     speech_text = re.sub(r'^\s*(\d+\.)\s*(.*?)$', r'\1 \2. ', speech_text, flags=re.MULTILINE)
-    logger.debug(f"After list handling notation:\n{speech_text}")
+    # logger.debug(f"After list handling notation:\n{speech_text}")
 
     # Remove links, keeping only the text
     speech_text = re.sub(r'\[([^\]]+)\]\([^\)]+\)', r'\1', speech_text)
-    logger.debug(f"After links notation:\n{speech_text}")
+    # logger.debug(f"After links notation:\n{speech_text}")
 
     # Remove any remaining special characters
     # speech_text = re.sub(r'[#_*~`>|]', '', speech_text)
     # logger.debug(f"After remaining special characters notation:\n{speech_text}")
 
     # Add pauses for better speech flow
-    speech_text = speech_text.replace('...', '<break time="300ms"/>')
-    speech_text = speech_text.replace('…', '<break time="300ms"/>')
+    speech_text = speech_text.replace('... ', '<break time="300ms"/>')
+    speech_text = speech_text.replace('… ', '<break time="300ms"/>')
+    speech_text = speech_text.replace('. ', '.<break time="300ms"/>')
     speech_text = speech_text.replace('.\n\n', '.<break time="700ms"/>')
-    speech_text = speech_text.replace('.', '.<break time="300ms"/>')
-    speech_text = speech_text.replace('!', '!<break time="400ms"/>')
-    speech_text = speech_text.replace('?', '?<break time="300ms"/>')
-    speech_text = speech_text.replace(';', ';<break time="150ms"/>')
-    speech_text = speech_text.replace(':', ';<break time="200ms"/>')
-    speech_text = speech_text.replace(',', ',<break time="100ms"/>')
+    speech_text = speech_text.replace('! ', '!<break time="400ms"/>')
+    speech_text = speech_text.replace('? ', '?<break time="300ms"/>')
+    speech_text = speech_text.replace('; ', ';<break time="150ms"/>')
+    speech_text = speech_text.replace(' - ', ';<break time="150ms"/>')
+    speech_text = speech_text.replace(': ', ';<break time="200ms"/>')
+    speech_text = speech_text.replace(', ', ',<break time="100ms"/>')
+    speech_text = speech_text.replace('<dot>', '.') # Recreate the '.' after the title
     speech_text = speech_text.replace('/start', '<lang xml:lang="en-US"><prosody volume="soft" pitch="low" rate="slow">Start of conversation</prosody></lang><break time="600ms"/>')
     speech_text = speech_text.replace('/bye', '<lang xml:lang="en-US"><prosody volume="default" pitch="default" rate="slow">Good bye.</prosody></lang>')
     speech_text = speech_text.replace('/end', '<lang xml:lang="en-US"><prosody volume="soft" pitch="low" rate="slow">Termination of conversation</prosody></lang><break time="600ms"/>')
     speech_text = speech_text.replace('/stop', '<lang xml:lang="en-US"><prosody volume="soft" pitch="low" rate="slow">Request conversation termination</prosody></lang><break time="600ms"/>')
     speech_text = speech_text.replace('/help', '<lang xml:lang="en-US"><prosody volume="soft" pitch="low" rate="slow">Unimplemented request for help</prosody></lang><break time="600ms"/>')
-    logger.debug(f"Converted markdown to speech notation:\n{speech_text}")
+    # logger.debug(f"Converted markdown to speech notation:\n{speech_text}")
     # Wrap the entire text in SSML tags
     speech_text = f'<speak>{speech_text}</speak>'
 
@@ -271,10 +317,20 @@ def start_proxy(config, mirror_stdout, max_messages, logger, no_transcript, debu
             send_hello_to_first = True # Alternatively use False or random.choice([True, False])
             persona1,lang1,model1, gender1, tts_engine1, voice1 = handle_client(client1, client2, hello if send_hello_to_first else None, None, None, mirror_stdout, max_messages, logger, debug, tts, None)
             persona2,lang2,model2, gender2, tts_engine2, voice2 = handle_client(client2, client1, hello if not send_hello_to_first else None, None, None, mirror_stdout, max_messages, logger, debug, tts, voice1)
+            safe_persona1 = sanitize_filename(persona1)
+            safe_persona2 = sanitize_filename(persona2)
+
+            if tts and debug:
+                ssml_file1_name = f'logs/tts_{iso_date}_{safe_persona1}({lang1})_{sanitize_filename(model1)}.xml'
+                ssml_file2_name = f'logs/tts_{iso_date}_{safe_persona2}({lang2})_{sanitize_filename(model2)}.xml'
+                ssml_file1 = open(ssml_file1_name, 'w', encoding='utf-8')
+                ssml_file2 = open(ssml_file2_name, 'w', encoding='utf-8')
+                ssml_file1.write(f"<speak><voice gender='{gender1}' xml:lang='{lang1}' name='{voice1.name}'>\n")
+                ssml_file2.write(f"<speak><voice gender='{gender2}' xml:lang='{lang2}' name='{voice2.name}'>\n")
+                ssml_file1.flush()
+                ssml_file2.flush()
 
             if not no_transcript:
-                safe_persona1 = sanitize_filename(persona1)
-                safe_persona2 = sanitize_filename(persona2)
                 transcript_filename = f'transcripts/transcript_{iso_date}_{safe_persona1}({lang1})_{sanitize_filename(model1)}---{safe_persona2}({lang2})_{sanitize_filename(model2)}.html'
                 
                 transcript_file = open(transcript_filename, 'w', encoding='utf-8')
@@ -331,7 +387,11 @@ def start_proxy(config, mirror_stdout, max_messages, logger, no_transcript, debu
                                 content1 = format_message(message)
                                 if tts_engine1:
                                     tts_engine1.setProperty('voice',voice1.id)
-                                    tts_engine1.say(convert_markdown_to_speech(message,debug=debug)) # TODO: Convert markdown for bold and italic to corresponding HTML(?) tags suitable for TTS
+                                    tts_engine1.say(convert_markdown_to_speech(message,debug=debug))
+                                    if debug:
+                                        ssml_file1.write(f"\n<!--\n{message}\n-->\n")
+                                        ssml_file1.write(f"{convert_markdown_to_speech(message,debug=debug)}\n\n")
+                                        ssml_file1.flush()
                                     tts_engine1.runAndWait()
 
                             last_time = datetime.datetime.now()
@@ -353,7 +413,11 @@ def start_proxy(config, mirror_stdout, max_messages, logger, no_transcript, debu
                                 content2 = format_message(message)
                                 if tts_engine2:
                                     tts_engine2.setProperty('voice',voice2.id)
-                                    tts_engine2.say(convert_markdown_to_speech(message,debug=debug)) # TODO: Convert markdown for bold and italic to corresponding HTML(?) tags suitable for TTS
+                                    if debug:
+                                        ssml_file2.write(f"\n<!--\n{message}\n-->\n")
+                                        ssml_file2.write(f"{convert_markdown_to_speech(message,debug=debug)}\n\n")
+                                        ssml_file2.flush()
+                                    tts_engine2.say(convert_markdown_to_speech(message,debug=debug))
                                     tts_engine2.runAndWait()
 
                             last_time = datetime.datetime.now()
@@ -376,22 +440,38 @@ def start_proxy(config, mirror_stdout, max_messages, logger, no_transcript, debu
                         if str(e) != "Max messages reached":
                             logger.debug(f"Error handling client: {e}")
                             raise
+                        else:
+                            raise Exception("Max messages reached")
 
         except Exception as e:
             logger.exception(f"Connection ended: {e}")
 
         finally:
             if client1:
-                client1.send(b'/stop\n')
-                logger.info(f"Client1 {addr1[0]}:{addr1[1]} sent: /stop")
-                client1.close()
+                try:
+                    client1.send(b'/stop\n')
+                    logger.info(f"Client1 {addr1[0]}:{addr1[1]} sent: /stop")
+                    client1.close()
+                except Exception as e:
+                    logger.info(f"Client1 already closed: {e}")
+                client1 = None
             if client2:
-                client2.send(b'/stop\n')
-                logger.info(f"Client2 {addr2[0]}:{addr2[1]} sent: /stop")
-                client2.close()
+                try:
+                    client2.send(b'/stop\n')
+                    logger.info(f"Client2 {addr2[0]}:{addr2[1]} sent: /stop")
+                    client2.close()
+                except Exception as e:
+                    logger.info(f"Client2 already closed: {e}")
+                client2 = None
             if transcript_file:
                 transcript_file.write('</table>\n</body>\n</html>')
                 transcript_file.close()
+            if tts and ssml_file1:
+                ssml_file1.write('\n</voice>\n</speak>\n')
+                ssml_file1.close()
+            if tts and ssml_file2:
+                ssml_file2.write('\n</voice>\n</speak>\n')
+                ssml_file2.close()
             server.close()
             
         if not no_transcript:

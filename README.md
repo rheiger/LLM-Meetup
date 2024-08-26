@@ -131,10 +131,12 @@ This has only been tested on a Mac. Underneath it is using the voices from MacOS
 There will be more to come. Feedback is welcome.
 
 #### Version and last edited
-This is version: v0.4.12 (build: 50) by rheiger@icloud.com on 2024-08-25 22:29:59
+This is version: v0.4.17 (build: 55) by rheiger@icloud.com on 2024-08-26 15:14:15
 
 ##### Build comments
 Added more personas
 Unified the four LLM services
 Added SSML to improve TTS
 Renamed Agent to Service
+Duplicated some personas for different languages
+Improved markdown to SSML conversion

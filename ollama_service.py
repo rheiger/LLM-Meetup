@@ -9,7 +9,7 @@ import json
 import random
 import sys
 
-__version__ = "This is version v0.4.12 (build: 50) by rheiger@icloud.com on 2024-08-25 22:29:59"
+__version__ = "This is version v0.4.17 (build: 55) by rheiger@icloud.com on 2024-08-26 15:14:15"
 
 def load_config(config_file: str) -> Dict[str, Any]:
     """Load configuration from a YAML file."""
@@ -89,7 +89,7 @@ def handle_client(s: socket.socket, ollama_client: ollama.Client, config: Dict[s
                 logging.warning("Received empty data, closing connection")
                 break
             if not quiet:
-                print(f"Received: '{data}'\n---")
+                print(f"Received:\n'{data}'\n---")
             if data.lower().startswith("/end") or data.lower().endswith("/end"):
                 logging.info(f"Received /end, closing connection ({data})")
                 if s.fileno() != -1:
@@ -129,7 +129,7 @@ def handle_client(s: socket.socket, ollama_client: ollama.Client, config: Dict[s
             )
             reply = response['message']['content'].strip()
             if not quiet:
-                print(f"Inferred: {reply}\n================\n")
+                print(f"Inferred:\n{reply}\n================\n\n")
             chat_history.append({"role": "assistant", "content": response['message']['content']})
             logging.debug(f"{response['prompt_eval_count']} input tokens evaluated in {round(response['prompt_eval_duration']/1e9, 3)} seconds {round(1e9 * float(response['prompt_eval_count']) / response['prompt_eval_duration'], 3)} tokens/sec, "
                   f"{response['eval_count']} output tokens evaluated in {round(response['total_duration']/1e9, 3)} seconds {round(1e9 * float(response['eval_count']) / response['total_duration'], 3)} tokens/sec")

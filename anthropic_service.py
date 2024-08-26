@@ -9,7 +9,7 @@ from typing import Tuple
 import sys
 import logging
 
-__version__ = "This is version v0.4.12 (build: 50) by rheiger@icloud.com on 2024-08-25 22:29:59"
+__version__ = "This is version v0.4.17 (build: 55) by rheiger@icloud.com on 2024-08-26 15:14:15"
 
 def load_config(config_file: str) -> Dict[str, Any]:
     with open(config_file, 'r') as f:
@@ -38,7 +38,7 @@ def handle_client(s: socket.socket, anthropic_client: Anthropic, config: Dict[st
                 logging.warning("Received empty data, closing connection")
                 break
             if not quiet:
-                print(f"Received: '{data}'\n---")
+                print(f"Received:\n'{data}'\n---")
             if data.lower().startswith("/end") or data.lower().endswith("/end"):
                 logging.info(f"Received /end, closing connection ({data})")
                 if s.fileno() != -1:
@@ -67,7 +67,7 @@ def handle_client(s: socket.socket, anthropic_client: Anthropic, config: Dict[st
             )
             reply = response.content[0].text.strip() + '\n'
             if not quiet:
-                print(f"Inferred: {reply}\n================\n")
+                print(f"Inferred:\n{reply}\n================\n\n")
             if not keep_looping:
                 reply += "/end\n"
             logging.debug(f"Reply with '{reply}'")
