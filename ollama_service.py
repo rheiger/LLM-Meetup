@@ -8,8 +8,17 @@ import logging
 import json 
 import random
 import sys
+import signal
 
-__version__ = "This is version v0.4.18 (build: 56) by rheiger@icloud.com on 2024-08-26 15:14:59"
+__version__ = "This is version v0.4.19 (build: 57) by rheiger@icloud.com on 2024-08-26 22:42:12"
+
+terminate = False
+
+# Implement a signal handler for SIGINT (Ctrl+C)
+def signal_handler(sig, frame):
+    global terminate
+    logging.info("Received SIGINT (Ctrl+C), terminating... ASAP")
+    terminate = True
 
 def load_config(config_file: str) -> Dict[str, Any]:
     """Load configuration from a YAML file."""
@@ -74,6 +83,8 @@ def filter_md(s: str) -> str:
 
 def handle_client(s: socket.socket, ollama_client: ollama.Client, config: Dict[str, Any], system_prompt: str, persona_name: str, quiet: bool) -> None:
     """Handle client connections and process requests."""
+    global terminate
+
     # Send persona name to proxy
     s.sendall(f"/iam: {persona_name}.{config['model']}\n".encode('utf-8'))
 
@@ -105,6 +116,10 @@ def handle_client(s: socket.socket, ollama_client: ollama.Client, config: Dict[s
             if data.lower().startswith("/bye") or data.lower().endswith("/bye"):
                 logging.warning(f"Received /bye, Finishing the conversation ({data})")
                 keep_looping = False
+            if terminate:
+                keep_looping = False
+                logging.info(f"SIGINT detected terminating now")
+
             # Needed to keep context for ollama
             chat_history.append({"role": "user", "content": data})
 
@@ -151,6 +166,8 @@ def handle_client(s: socket.socket, ollama_client: ollama.Client, config: Dict[s
 
 
 def main():
+    # install signal handlers
+    signal.signal(signal.SIGINT, signal_handler)
     parser = argparse.ArgumentParser(description="Ollama LLM TCP Server")
     parser.add_argument("prompt_file", nargs='?', help="Markdown file containing the system prompt")
     parser.add_argument("-c", "--config", default="config/ollama.yml", help="YAML configuration file")

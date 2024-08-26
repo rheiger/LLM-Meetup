@@ -11,8 +11,21 @@ import select
 import pyttsx3
 import langdetect
 import random
+import signal
 
-__version__ = "This is version v0.4.18 (build: 56) by rheiger@icloud.com on 2024-08-26 15:14:59"
+__version__ = "This is version v0.4.19 (build: 57) by rheiger@icloud.com on 2024-08-26 22:42:12"
+
+terminate = False
+in_accept = False
+
+# Implement a signal handler for SIGINT (Ctrl+C)
+def signal_handler(sig, frame):
+    global terminate, in_accept
+    logging.info("Received SIGINT (Ctrl+C), terminating... ASAP")
+    terminate = True
+    if in_accept:
+        logging.info("Terminating accept loop")
+        raise KeyboardInterrupt
 
 def sanitize_filename(name):
     # Remove any characters that aren't alphanumeric, underscore, or hyphen
@@ -157,7 +170,7 @@ def filter_md(s: str) -> str:
 
     return converted_text
 
-def convert_markdown_to_speech(markdown_text, debug=False):
+def convert_markdown_to_speech(markdown_text, logger, debug=False):
     # Convert markdown to speech notation for ttysx3 engine
     
     emoji_pattern = re.compile(
@@ -273,11 +286,12 @@ def format_message(message, debug=False):
     return ""
 
 def start_proxy(config, mirror_stdout, max_messages, logger, no_transcript, debug = False, tts=False):
+    global terminate, in_accept
     port = config['proxy']['port']
     host = config['proxy']['host']
     hello = config['proxy'].get('hello', '')
 
-    while True:
+    while not terminate:
         server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
@@ -304,13 +318,22 @@ def start_proxy(config, mirror_stdout, max_messages, logger, no_transcript, debu
         tts_engine2 = None
         gender1 = None
         gender2 = None
-
+        ssml_file1 = None
+        ssml_file2 = None
+        transcript_file = None
+        
         try:
-            client1, addr1 = server.accept()
-            logger.info(f"Connection from {addr1[0]}:{addr1[1]}")
+            try:
+                in_accept = True
+                client1, addr1 = server.accept()
+                logger.info(f"Connection from {addr1[0]}:{addr1[1]}")
 
-            client2, addr2 = server.accept()
-            logger.info(f"Connection from {addr2[0]}:{addr2[1]}")
+                client2, addr2 = server.accept()
+                logger.info(f"Connection from {addr2[0]}:{addr2[1]}")
+                in_accept = False
+            except KeyboardInterrupt:
+                logger.info("Terminating accept loop")
+                break
 
             iso_date = datetime.datetime.now().isoformat()
             
@@ -387,10 +410,10 @@ def start_proxy(config, mirror_stdout, max_messages, logger, no_transcript, debu
                                 content1 = format_message(message)
                                 if tts_engine1:
                                     tts_engine1.setProperty('voice',voice1.id)
-                                    tts_engine1.say(convert_markdown_to_speech(message,debug=debug))
+                                    tts_engine1.say(convert_markdown_to_speech(message,logger,debug=debug))
                                     if debug:
                                         ssml_file1.write(f"\n<!--\n{message}\n-->\n")
-                                        ssml_file1.write(f"{convert_markdown_to_speech(message,debug=debug)}\n\n")
+                                        ssml_file1.write(f"{convert_markdown_to_speech(message,logger,debug=debug)}\n\n")
                                         ssml_file1.flush()
                                     tts_engine1.runAndWait()
 
@@ -415,9 +438,9 @@ def start_proxy(config, mirror_stdout, max_messages, logger, no_transcript, debu
                                     tts_engine2.setProperty('voice',voice2.id)
                                     if debug:
                                         ssml_file2.write(f"\n<!--\n{message}\n-->\n")
-                                        ssml_file2.write(f"{convert_markdown_to_speech(message,debug=debug)}\n\n")
+                                        ssml_file2.write(f"{convert_markdown_to_speech(message,logger,debug=debug)}\n\n")
                                         ssml_file2.flush()
-                                    tts_engine2.say(convert_markdown_to_speech(message,debug=debug))
+                                    tts_engine2.say(convert_markdown_to_speech(message,logger,debug=debug))
                                     tts_engine2.runAndWait()
 
                             last_time = datetime.datetime.now()
@@ -435,6 +458,10 @@ def start_proxy(config, mirror_stdout, max_messages, logger, no_transcript, debu
                         if max_messages > 0 and message_count >= max_messages:
                             logger.info(f"Reached max messages: {max_messages}")
                             raise Exception("Max messages reached")
+                        
+                        if terminate:
+                            logger.info("Terminate flag set, terminating...")
+                            raise Exception("Terminate flag set")
 
                     except Exception as e:
                         if str(e) != "Max messages reached":
@@ -480,7 +507,10 @@ def start_proxy(config, mirror_stdout, max_messages, logger, no_transcript, debu
             logger.info("Conversation ended. No transcript saved.")
         time.sleep(1)
 
-if __name__ == "__main__":
+def main():
+    # install signal handlers
+    signal.signal(signal.SIGINT, signal_handler)
+
     parser = argparse.ArgumentParser(description='TCP Proxy with transcription')
     parser.add_argument('-m', '--mirror', action='store_true', help='Mirror transcript to stdout')
     parser.add_argument('-M', '--max-messages', type=int, default=10, help='Maximum number of messages to forward (0 for unlimited)')
@@ -528,3 +558,6 @@ if __name__ == "__main__":
     logger = logging.getLogger('tcp_proxy')
 
     start_proxy(config, config['proxy'].get('mirror', False), config['proxy'].get('max_messages', 10), logger, config['proxy'].get('no_transcript', False), args.debug, args.tts)
+
+if __name__ == "__main__":
+    main()

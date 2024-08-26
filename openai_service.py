@@ -8,8 +8,17 @@ import os
 from typing import Tuple
 import sys
 import logging
+import signal
 
-__version__ = "This is version v0.4.18 (build: 56) by rheiger@icloud.com on 2024-08-26 15:14:59"
+__version__ = "This is version v0.4.19 (build: 57) by rheiger@icloud.com on 2024-08-26 22:42:12"
+
+terminate = False
+
+# Implement a signal handler for SIGINT (Ctrl+C)
+def signal_handler(sig, frame):
+    global terminate
+    logging.info("Received SIGINT (Ctrl+C), terminating... ASAP")
+    terminate = True
 
 def load_config(config_file: str) -> Dict[str, Any]:
     with open(config_file, 'r') as f:
@@ -23,6 +32,7 @@ def load_system_prompt(prompt_file: str) -> Tuple[str, str]:
         return content, persona_name
 
 def handle_client(s: socket.socket, openai_client: openai.Client, config: Dict[str, Any], system_prompt: str, persona_name: str, quiet: bool) -> None:
+    global terminate
     # Send persona name to proxy
     logging.debug(f"Sending persona name to proxy: {persona_name}.{config['model']}")
     s.sendall(f"/iam: {persona_name}.{config['model']}\n".encode('utf-8'))
@@ -54,6 +64,10 @@ def handle_client(s: socket.socket, openai_client: openai.Client, config: Dict[s
             if data.lower().startswith("/bye") or data.lower().endswith("/bye"):
                 logging.warning(f"Received /bye, Finishing the conversation ({data})")
                 keep_looping = False
+            if terminate:
+                logging.info(f"Terminating conversation after INTR")
+                keep_looping = False
+
             data = data.replace("/start","Hello") if msg_count == 0 else data.replace("/start",".") # remove the start sequence from the prompt
 
             response = openai_client.chat.completions.create(
@@ -84,6 +98,8 @@ def handle_client(s: socket.socket, openai_client: openai.Client, config: Dict[s
             logging.warning("Socket is already closed, could not send /end")
 
 def main():
+    # install signal handlers
+    signal.signal(signal.SIGINT, signal_handler)
     parser = argparse.ArgumentParser(description="OpenAI GPT TCP Server")
     parser.add_argument("prompt_file", nargs="?", help="Markdown file containing the system prompt")
     parser.add_argument("-c", "--config", default="config/openai.yml", help="YAML configuration file")

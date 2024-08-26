@@ -2,8 +2,9 @@ import argparse
 import yaml
 import importlib
 import sys
+import signal
 
-__version__ = "This is version v0.4.18 (build: 56) by rheiger@icloud.com on 2024-08-26 15:14:59"
+__version__ = "This is version v0.4.19 (build: 57) by rheiger@icloud.com on 2024-08-26 22:42:12"
 
 def load_config(config_file):
     with open(config_file, 'r') as file:
@@ -55,6 +56,10 @@ def main():
     if args.logfile:
         agent_args.extend(["-l", args.logfile])
     agent_args.extend(unknown)
+    
+    # Ignore SIGINT and pass it to the loaded module
+    signal.signal(signal.SIGINT, signal.SIG_IGN)
+    
     # Run the agent's main function
     sys.argv = [sys.argv[0]] + agent_args
     agent_module.main()
