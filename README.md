@@ -131,7 +131,7 @@ This has only been tested on a Mac. Underneath it is using the voices from MacOS
 There will be more to come. Feedback is welcome.
 
 #### Version and last edited
-This is version: v0.4.19 (build: 57) by rheiger@icloud.com on 2024-08-26 22:42:12
+This is version: v0.4.20 (build: 58) by rheiger@icloud.com on 2024-08-27 12:35:29
 
 ##### Build comments
 Added more personas
@@ -141,3 +141,4 @@ Renamed Agent to Service
 Duplicated some personas for different languages
 Improved markdown to SSML conversion
 Added signal handler to the scripts to enable keyboard interrupt at next convenient point in time
+General cleanup

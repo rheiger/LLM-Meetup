@@ -10,7 +10,7 @@ import random
 import sys
 import signal
 
-__version__ = "This is version v0.4.19 (build: 57) by rheiger@icloud.com on 2024-08-26 22:42:12"
+__version__ = "This is version v0.4.20 (build: 58) by rheiger@icloud.com on 2024-08-27 12:35:29"
 
 terminate = False
 
