@@ -13,7 +13,7 @@ import langdetect
 import random
 import signal
 
-__version__ = "This is version v0.4.20 (build: 58) by rheiger@icloud.com on 2024-08-27 12:35:29"
+__version__ = "This is version v0.4.21 (build: 59) by rheiger@icloud.com on 2024-08-27 12:35:53"
 
 terminate = False
 in_accept = False

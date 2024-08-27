@@ -1,9 +1,6 @@
 .env
 transcript_*.txt
 transcript_*.md
-personas/angryai.md
-personas/narcissistic_sociopath.md
-personas/richie*.md
 config/ollama_*.yml
 config/openai_*.yml
 config/anthropic_*.yml
@@ -13,3 +10,4 @@ __pycache__/*
 transcripts/*
 logs/*
 Testing/
+my_personas/

@@ -131,7 +131,7 @@ This has only been tested on a Mac. Underneath it is using the voices from MacOS
 There will be more to come. Feedback is welcome.
 
 #### Version and last edited
-This is version: v0.4.20 (build: 58) by rheiger@icloud.com on 2024-08-27 12:35:29
+This is version: v0.4.21 (build: 59) by rheiger@icloud.com on 2024-08-27 12:35:53
 
 ##### Build comments
 Added more personas
