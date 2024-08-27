@@ -10,7 +10,7 @@ import sys
 import logging
 import signal
 
-__version__ = "This is version v0.4.21 (build: 59) by rheiger@icloud.com on 2024-08-27 12:35:53"
+__version__ = "This is version v0.5.0 (build: 60) by rheiger@icloud.com on 2024-08-27 21:36:52"
 
 terminate = False
 
@@ -109,6 +109,7 @@ def main():
     parser.add_argument("-v","--verbose", action="store_true", help="Enable verbose logging")
     parser.add_argument("-q","--quiet", action="store_true", help="Enable quiet mode with minimal logging")
     parser.add_argument("-V","--version", action="store_true", help="print version information, then quit")
+    parser.add_argument("-d","--debug", action="store_true", help="Enable debug mode with more extensive logging, also to console")
     args = parser.parse_args()
 
     if args.version:
@@ -118,6 +119,9 @@ def main():
     if not args.prompt_file:
         parser.error("prompt_file is required unless --version is specified")
 
+    if args.debug:
+        args.quiet = False
+        
     if args.quiet:
         log_level = logging.WARNING
     elif args.verbose:
@@ -126,7 +130,15 @@ def main():
         log_level = logging.INFO
     logging.basicConfig(filename=args.logfile, level=log_level, format='%(asctime)s - %(name)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s')
 
-    logging.getLogger("httpx").setLevel(logging.WARNING)
+    if not args.debug:
+        logging.getLogger("httpx").setLevel(logging.WARNING)
+    else:
+        if args.logfile:
+            # Have the logging object log to both the console and the log file
+            console_logger = logging.StreamHandler(sys.stderr)
+            console_logger.setLevel(log_level)
+            console_logger.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s'))
+            logging.getLogger().addHandler(console_logger)
 
     config = load_config(args.config)
     system_prompt, persona_name = load_system_prompt(args.prompt_file)

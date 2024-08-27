@@ -1,0 +1,18 @@
+# Ollama configuration
+Agent:
+  service: ollama
+
+# Model to use for chat
+model: llama2-uncensored
+
+# Ollama API host (default is usually fine)
+host: http://localhost:11434
+
+# Generation parameters
+temperature: 0.7
+top_p: 1.0
+top_k: 40
+
+# You can add more parameters here as needed, such as:
+max_tokens: 2048
+# stop_sequences: ["\n", "Human:", "AI:"]

@@ -4,7 +4,7 @@ import importlib
 import sys
 import signal
 
-__version__ = "This is version v0.4.21 (build: 59) by rheiger@icloud.com on 2024-08-27 12:35:53"
+__version__ = "This is version v0.5.0 (build: 60) by rheiger@icloud.com on 2024-08-27 21:36:52"
 
 def load_config(config_file):
     with open(config_file, 'r') as file:
@@ -21,6 +21,7 @@ def main():
     parser.add_argument("-l","--logfile", help="Log file path")
     parser.add_argument("-v","--verbose", action="store_true", help="Enable verbose logging")
     parser.add_argument("-q","--quiet", action="store_true", help="Enable quiet mode with minimal logging")
+    parser.add_argument("-d","--debug", action="store_true", help="Enable debug mode with more extensive logging, also to console")
     parser.add_argument("-V","--version", action="store_true", help="print version information, then quit")
     
     # Parse known args to handle service-specific arguments

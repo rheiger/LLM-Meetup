@@ -4,6 +4,7 @@ import re
 import subprocess
 import os
 from datetime import datetime
+import time
 
 def update_version(content, file_path):
     # Get the current version
@@ -88,3 +89,6 @@ for root, dirs, files in os.walk('.'):
         if not file.startswith('.') and file.endswith('.py') and file not in  gitignore_content:
             file_path = os.path.join(root, file)
             process_file(file_path, readme_version)
+
+# Ensuring the git add completed before the commit
+time.sleep(2)
