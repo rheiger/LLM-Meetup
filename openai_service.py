@@ -10,7 +10,7 @@ import sys
 import logging
 import signal
 
-__version__ = "This is version v0.5.0 (build: 60) by rheiger@icloud.com on 2024-08-27 21:36:52"
+__version__ = "This is version v0.5.1 (build: 61) by rheiger@icloud.com on 2024-08-29 13:58:46"
 
 terminate = False
 
@@ -51,10 +51,10 @@ def handle_client(s: socket.socket, openai_client: openai.Client, config: Dict[s
                 print(f"Received:\n'{data}'\n---")
             if data.lower().startswith("/end") or data.lower().endswith("/end"):
                 logging.info(f"Received /end, closing connection ({data})")
-                if s.fileno() != -1:
+                try:
                     s.sendall("/end".encode('utf-8'))
-                else:
-                    logging.warning("Socket is already closed, could not send /end")
+                except socket.error as e:
+                    logging.info(f"Socket already closed by partner when sending /end: {e}")
                 break
             if data.lower().startswith("/help") or data.lower().endswith("/help"):
                 logging.warning(f"Received /help, don't know what to do ({data})")
@@ -140,7 +140,11 @@ def main():
             console_logger.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s'))
             logging.getLogger().addHandler(console_logger)
 
+    logging.debug(f"Using config file: {args.config}")
+
     config = load_config(args.config)
+
+    logging.debug(f"Using config: {config}")
 
     system_prompt, persona_name = load_system_prompt(args.prompt_file)
 
@@ -149,7 +153,10 @@ def main():
     if not api_key:
         raise ValueError("OPENAI_API_KEY not found in environment variables")
 
-    openai_client = openai.Client(api_key=api_key)
+    base_url = config.get('api_base', None)
+    logging.debug(f"Using base_url: {base_url}")
+
+    openai_client = openai.Client(api_key=api_key, base_url=base_url)
     
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         try:

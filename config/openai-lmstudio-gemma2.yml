@@ -3,21 +3,10 @@ Agent:
   service: openai
 
 # Model selection
-model: gpt-4o-mini
-# Available models:
-# model: gpt-4o
-# model: gpt-4-turbo-preview
-# - gpt-4-turbo-preview (most capable, latest model)
-# - gpt-4-0125-preview
-# - gpt-4-1106-preview
-# - gpt-4-vision-preview (for image analysis)
-# - gpt-4 (8K context)
-# - gpt-4-32k (32K context)
-# - gpt-3.5-turbo (most up to date GPT-3.5 model)
-# - gpt-3.5-turbo-16k (16K context)
-# - gpt-3.5-turbo-1106 (updated GPT-3.5 model)
-# - gpt-3.5-turbo-0125 (latest GPT-3.5 model, as of Feb 2024)
-
+# model: gpt-4o-mini
+api_base: "http://localhost:1234/v1"
+model: "lmstudio-ai/gemma-2b-it-GGUF/gemma-2b-it-q8_0.gguf"
+#model: "lmstudio-community/gemma-2-2b-it-GGUF/gemma-2-2b-it-Q4_K_M.gguf"
 max_tokens: 4096
 temperature: 0.7
 system_prompt: "You are a helpful AI assistant."

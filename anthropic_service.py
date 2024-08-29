@@ -10,7 +10,7 @@ import sys
 import logging
 import signal
 
-__version__ = "This is version v0.5.0 (build: 60) by rheiger@icloud.com on 2024-08-27 21:36:52"
+__version__ = "This is version v0.5.1 (build: 61) by rheiger@icloud.com on 2024-08-29 13:58:46"
 
 terminate = False
 

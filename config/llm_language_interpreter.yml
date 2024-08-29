@@ -1,12 +1,9 @@
 # Ollama configuration for translation service
 Agent:
-  service: ollama
+  service: openai
 
 # Model to use for chat
-model: mistral
-
-# Ollama API host (default is usually fine)
-host: http://localhost:11434
+model: gpt-4o-mini
 
 # Generation parameters
 temperature: 0.2

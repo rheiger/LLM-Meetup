@@ -131,7 +131,8 @@ This has only been tested on a Mac. Underneath it is using the voices from MacOS
 There will be more to come. Feedback is welcome.
 
 #### Version and last edited
-This is version: v0.5.0 (build: 60) by rheiger@icloud.com on 2024-08-27 21:36:52
+This is version: v0.5.1 (build: 61) by rheiger@icloud.com on 2024-08-29 13:58:46
 
 ##### Build comments
 Added translation to conversation
+Implemented translation into llm_proxy, fixed to using openai API, which is also accessible for LMStudio and probably ollama

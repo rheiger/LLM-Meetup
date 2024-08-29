@@ -1,0 +1,25 @@
+# OpenAI Configuration
+Agent:
+  service: openai
+
+# Model selection
+# model: gpt-4o-mini
+api_base: "http://localhost:1234/v1"
+model: "NousResearch/Hermes-3-Llama-3.1-8B-GGUF/Hermes-3-Llama-3.1-8B.Q4_K_M.gguf"
+max_tokens: 4096
+temperature: 0.7
+system_prompt: "You are a helpful AI assistant."
+
+# Additional optional parameters
+# top_p: 1.0
+# frequency_penalty: 0.0
+# presence_penalty: 0.0
+# stop: ["\n", " Human:", " AI:"]
+
+# API configuration (if using a different endpoint)
+# api_type: "azure"
+# api_base: "https://your-azure-openai-resource.openai.azure.com/"
+# api_version: "2023-05-15"
+
+# Deployment ID (for Azure OpenAI)
+# engine: "deployment-name"

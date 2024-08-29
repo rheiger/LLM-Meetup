@@ -13,9 +13,12 @@ import langdetect
 import random
 import signal
 from typing import Dict, Any, List, Tuple
-import ollama
+# import ollama
+import openai
+import os
+from dotenv import load_dotenv
 
-__version__ = "This is version v0.5.0 (build: 60) by rheiger@icloud.com on 2024-08-27 21:36:52"
+__version__ = "This is version v0.5.1 (build: 61) by rheiger@icloud.com on 2024-08-29 13:58:46"
 
 terminate = False
 in_accept = False
@@ -38,7 +41,7 @@ def signal_handler(sig, frame):
 
 def sanitize_filename(name):
     # Remove any characters that aren't alphanumeric, underscore, or hyphen
-    sanitized = re.sub(r'[^\w\-.$@,]', lambda m: '~' if m.start() > 0 else m.group(), name)    
+    sanitized = re.sub(r'[^\w\-.$@,]', lambda m: '~' if m.start() > 0 else m.group(), name)
     # Limit to 24 characters
     return sanitized[:32]
 
@@ -49,14 +52,14 @@ def initialize_tts_engine(persona_name, persona_lang, persona_gender, other_voic
         logger.debug(f"other_voice = {other_voice}")
         voices = tts_engine.getProperty('voices')
         matching_voices = []
-    
+
         logger.debug(f"persona_lang = {persona_lang}")
         if persona_lang != "--":
             matching_voices = [v for v in voices if any(persona_lang.lower() in lang.lower() for lang in v.languages) and v.id not in [other_voice.id if other_voice else ""]]
-    
+
         if not matching_voices:
             matching_voices = voices
-    
+
         if persona_gender.lower() == 'f':
             gender_voices = [v for v in matching_voices if 'female' in str(v.gender).lower()]
         elif persona_gender.lower() == 'm':
@@ -111,7 +114,7 @@ def handle_client(client_socket, partner_socket, hello_message=None, transcript_
                 persona_gender = "--"
                 persona_model = "Unknown_model"
             break
-    
+
 
     if tts:
         tts_engine, selected_voice = initialize_tts_engine(persona_name, persona_lang, persona_gender, other_voice, logger, debug)
@@ -122,7 +125,7 @@ def handle_client(client_socket, partner_socket, hello_message=None, transcript_
 
     if debug:
         logger.debug(f"Determined for persona {persona_name} language={persona_lang} gender={persona_gender} using voice {selected_voice.name if selected_voice else 'None'}")
-    
+
     return persona_name, persona_lang, persona_model, persona_gender, tts_engine, selected_voice
 
 def filter_md(s: str) -> str:
@@ -167,7 +170,7 @@ def filter_md(s: str) -> str:
 
 def convert_markdown_to_speech(markdown_text, logger, debug=False):
     # Convert markdown to speech notation for ttysx3 engine
-    
+
     emoji_pattern = re.compile(
     r'([\U0001F600-\U0001F64F]'  # Emoticons
     r'|[\U0001F300-\U0001F5FF]'  # Symbols & Pictographs
@@ -353,7 +356,7 @@ def translate(text, source_language, target_language, logger, debug=False):
         return None
     target = language_lookup(target_language, logger, debug)
     logger.debug(f"Translating '{text}' to {target}")
-    response = translate_client.chat(
+    response = translate_client.chat.completions.create(
         model=translate_config['model'],
         messages=[
             {"role": "system", "content": f"""You are a professional **interpreter**, fluent in all relevant languages.
@@ -364,16 +367,13 @@ def translate(text, source_language, target_language, logger, debug=False):
             {"role": "user", "content": text}
         ],
         stream=False,
-        options={
-            'temperature': translate_config['temperature'],
-            'max_tokens': translate_config['max_tokens'],
-            'top_p': translate_config['top_p'],
-            'frequency_penalty': 0,
-        }
+        temperature=translate_config['temperature'] if 'temperature' in translate_config else 0.1,
+        max_tokens=translate_config['max_tokens'] if 'max_tokens' in translate_config else 2048,
+        top_p=translate_config['top_p'] if 'top_p' in translate_config else 1.0,
+        # top_k=translate_config['top_k'] if 'top_k' in translate_config else 40,
+        frequency_penalty=translate_config['frequency_penalty'] if 'frequency_penalty' in translate_config else 0,
     )
-    translated_text = response['message']['content'].strip()
-    logger.debug(f"{response['prompt_eval_count']} input tokens evaluated in {round(response['prompt_eval_duration']/1e9, 3)} seconds {round(1e9 * float(response['prompt_eval_count']) / response['prompt_eval_duration'], 3)} tokens/sec, "
-            f"{response['eval_count']} output tokens evaluated in {round(response['total_duration']/1e9, 3)} seconds {round(1e9 * float(response['eval_count']) / response['total_duration'], 3)} tokens/sec")
+    translated_text = response.choices[0].message.content.strip()
     logger.info(f"Translated text: {translated_text}")
     return translated_text
 
@@ -413,7 +413,7 @@ def start_proxy(config, mirror_stdout, max_messages, logger, no_transcript, debu
         ssml_file1 = None
         ssml_file2 = None
         transcript_file = None
-        
+
         try:
             try:
                 in_accept = True
@@ -428,7 +428,7 @@ def start_proxy(config, mirror_stdout, max_messages, logger, no_transcript, debu
                 break
 
             iso_date = datetime.datetime.now().isoformat()
-            
+
             translate_voice1 = None
             translate_voice2 = None
             translate_tts1 = None
@@ -440,7 +440,7 @@ def start_proxy(config, mirror_stdout, max_messages, logger, no_transcript, debu
             safe_persona1 = sanitize_filename(persona1)
             safe_persona2 = sanitize_filename(persona2)
             # get a voice for the translation
-            
+
             if tts and lang1 != lang2:
                 translate_tts1, translate_voice1 = initialize_tts_engine(persona1, lang2, gender1, None, logger, debug)
                 translate_tts2, translate_voice2 = initialize_tts_engine(persona2, lang1, gender2, translate_voice1, logger, debug)
@@ -457,7 +457,7 @@ def start_proxy(config, mirror_stdout, max_messages, logger, no_transcript, debu
 
             if not no_transcript:
                 transcript_filename = f'transcripts/transcript_{iso_date}_{safe_persona1}({lang1})_{sanitize_filename(model1)}---{safe_persona2}({lang2})_{sanitize_filename(model2)}.html'
-                
+
                 transcript_file = open(transcript_filename, 'w', encoding='utf-8')
                 transcript_file.write('<!DOCTYPE html>\n<html lang="en">\n<head>\n<meta charset="UTF-8">\n<meta name="viewport" content="width=device-width, initial-scale=1.0">\n<title>Transcript</title>\n<style>\n')
                 transcript_file.write('table { border-collapse: collapse; width: 100%; }\n')
@@ -469,31 +469,33 @@ def start_proxy(config, mirror_stdout, max_messages, logger, no_transcript, debu
 
             message_count = 0
             last_time = datetime.datetime.now()
-            
+
             while True:
                 ready_sockets, _, _ = select.select([client1, client2], [], [], 1.0)
-                
+
                 if not ready_sockets:
                     continue
 
                 for ready_socket in ready_sockets:
                     try:
                         data = ready_socket.recv(65536)
+                        delta = int((datetime.datetime.now() - last_time).total_seconds())
                         if not data:
                             logger.warning(f"Client {ready_socket.getpeername()} disconnected")
                             raise Exception("Client disconnected")
 
-                        current_time = datetime.datetime.now()
-                        delta = int((current_time - last_time).total_seconds())
-                        last_time = current_time
+                        # current_time = datetime.datetime.now()
+                        # delta = int((current_time - last_time).total_seconds())
+                        # last_time = current_time
 
                         logger.debug(f"Received {len(data)} bytes from {ready_socket.getpeername()}: {data}")
                         message = data.decode('utf-8').strip()
                         # message = re.sub(r'\n+', ' ', message) # TODO Maybe remove this
-                        logger.debug(f"Received message: {message}")
-                        
+                        # logger.debug(f"Received message: {message}")
+
                         content1 = ""
                         content2 = ""
+                        translation = ""
                         html_content_translated = ""
 
                         #------------------ Receive from client 1 ------------------
@@ -512,30 +514,41 @@ def start_proxy(config, mirror_stdout, max_messages, logger, no_transcript, debu
                                     # continue
                                 # else:
                                 #     #transcript_file.write(f"| {message_count} | {delta} | {filter_md(message)} | |\n")
-                                if tts_engine1:
-                                    tts_engine1.setProperty('voice',voice1.id)
-                                    speech_text = convert_markdown_to_speech(message,logger,debug=debug)
-                                    tts_engine1.say(speech_text)
-                                    if debug:
-                                        ssml_file1.write(f"\n<!--\n{message}\n-->\n")
-                                        ssml_file1.write(f"{speech_text}\n\n")
-                                        ssml_file1.flush()
-                                    tts_engine1.runAndWait()
                                 content1 = html_save_format_message(message) # save this for the transcript at the end of the loop
+                            if mirror_stdout:
+                                print(f"VVVVVVVVVVVVVVVVVVVVVV\n({message_count}) Delta: {delta}s, {persona1}[{lang1}]: {message.strip()}")
                             if lang1 != lang2:
+                                last_time_translation = datetime.datetime.now()
                                 translation = translate(message, lang1, lang2, logger, debug)
                                 html_content_translated = html_save_format_message(translation)
-                                if translate_tts1:
-                                    translate_tts1.setProperty('voice',translate_voice1.id) # NOTE: Since the languages differ, we need to switch the voice to the target language
-                                    ssml_content_translated = convert_markdown_to_speech(translation,logger,debug=debug)
-                                    translate_tts1.say(ssml_content_translated)
-                                    if debug:
-                                        ssml_file1.write(f"\n<!--\n{translation}\n-->\n")
-                                        ssml_file1.write(f"{ssml_content_translated}\n\n")
-                                        ssml_file1.flush()
-                                    translate_tts1.runAndWait()
+                                delta_translation = int((datetime.datetime.now() - last_time_translation).total_seconds())
                             else:
                                 translation = message
+
+                            if mirror_stdout and translation and translation != message:
+                                print(f"---------\nTranslationtime: {delta_translation}s, {persona1}[{lang2}]: {translation.strip()}")
+                            if mirror_stdout:
+                                print(f"^^^^^^^^^^^^^^^^^^^^^^^")
+
+                            #------ Speak if wanted
+                            if tts_engine1:
+                                tts_engine1.setProperty('voice',voice1.id)
+                                speech_text = convert_markdown_to_speech(message,logger,debug=debug)
+                                tts_engine1.say(speech_text)
+                                if debug:
+                                    ssml_file1.write(f"\n<!--\n{message}\n-->\n")
+                                    ssml_file1.write(f"{speech_text}\n\n")
+                                    ssml_file1.flush()
+                                tts_engine1.runAndWait()
+                            if translate_tts1 and translation and translation != message:
+                                translate_tts1.setProperty('voice',translate_voice1.id) # NOTE: Since the languages differ, we need to switch the voice to the target language
+                                ssml_content_translated = convert_markdown_to_speech(translation,logger,debug=debug)
+                                translate_tts1.say(ssml_content_translated)
+                                if debug:
+                                    ssml_file1.write(f"\n<!--\n{translation}\n-->\n")
+                                    ssml_file1.write(f"{ssml_content_translated}\n\n")
+                                    ssml_file1.flush()
+                                translate_tts1.runAndWait()
                             last_time = datetime.datetime.now()
                             client2.send(translation.encode('utf-8'))
 
@@ -554,46 +567,55 @@ def start_proxy(config, mirror_stdout, max_messages, logger, no_transcript, debu
                                     # continue
                                 # else:
                                 #     # transcript_file.write(f"| {message_count} | {delta} | | {filter_md(message)} |\n")
-                                if tts_engine2:
-                                    tts_engine2.setProperty('voice',voice2.id)
-                                    speech_text = convert_markdown_to_speech(message,logger,debug=debug)
-                                    tts_engine2.say(speech_text)
-                                    if debug:
-                                        ssml_file2.write(f"\n<!--\n{message}\n-->\n")
-                                        ssml_file2.write(f"{speech_text}\n\n")
-                                        ssml_file2.flush()
-                                    tts_engine2.runAndWait()
                                 content2 = html_save_format_message(message) # save this for the transcript at the end of the loop
+                            if mirror_stdout:
+                                print(f"VVVVVVVVVVVVVVVVVVVVVV\n({message_count}) Delta: {delta}s, {persona2}[{lang2}]: {message.strip()}")
                             if lang1 != lang2:
+                                last_time_translation = datetime.datetime.now()
                                 translation = translate(message, lang2, lang1, logger, debug)
                                 html_content_translated = html_save_format_message(translation)
-                                if translate_tts2:
-                                    translate_tts2.setProperty('voice',translate_voice2.id) # NOTE: Since the languages differ, we need to switch the voice to the target language
-                                    ssml_content_translated = convert_markdown_to_speech(translation,logger,debug=debug)
-                                    translate_tts2.say(ssml_content_translated)
-                                    if debug:
-                                        ssml_file2.write(f"\n<!--\n{html_content_translated}\n-->\n")
-                                        ssml_file2.write(f"{ssml_content_translated}\n\n")
-                                        ssml_file2.flush()
-                                    translate_tts2.runAndWait()
+                                delta_translation = int((datetime.datetime.now() - last_time_translation).total_seconds())
                             else:
                                 translation = message
+
+                            if mirror_stdout and translation and translation != message:
+                                print(f"---------\nTranslationtime: {delta_translation}s, {persona2}[{lang1}]: {translation.strip()}")
+                            if mirror_stdout:
+                                print(f"^^^^^^^^^^^^^^^^^^^^^^^")
+
+                            #---------- Speak if wanted
+                            if tts_engine2:
+                                tts_engine2.setProperty('voice',voice2.id)
+                                speech_text = convert_markdown_to_speech(message,logger,debug=debug)
+                                tts_engine2.say(speech_text)
+                                if debug:
+                                    ssml_file2.write(f"\n<!--\n{message}\n-->\n")
+                                    ssml_file2.write(f"{speech_text}\n\n")
+                                    ssml_file2.flush()
+                                tts_engine2.runAndWait()
+                            if translate_tts2 and translation and translation != message:
+                                translate_tts2.setProperty('voice',translate_voice2.id) # NOTE: Since the languages differ, we need to switch the voice to the target language
+                                ssml_content_translated = convert_markdown_to_speech(translation,logger,debug=debug)
+                                translate_tts2.say(ssml_content_translated)
+                                if debug:
+                                    ssml_file2.write(f"\n<!--\n{html_content_translated}\n-->\n")
+                                    ssml_file2.write(f"{ssml_content_translated}\n\n")
+                                    ssml_file2.flush()
+                                translate_tts2.runAndWait()
                             last_time = datetime.datetime.now()
                             client1.send(translation.encode('utf-8'))
 
                         if not no_transcript:
                             # Do the actual write to the transcript file
                             logger.debug(f"Writing message to transcript file: {content1} or {content2}")
-                            transcript_file.write(f'<tr><td>{message_count}</td><td>{delta:.2f}</td><td>{content1}</td><td>{html_content_translated}</td><td>{content2}</td></tr>\n')
+                            transcript_file.write(f'<tr><td>{message_count}</td><td>{delta:.2f}</td><td>{content1}</td><td>{delta_translation:.2f}s for translation<br>{html_content_translated}</td><td>{content2}</td></tr>\n')
                             transcript_file.flush()
-                        if mirror_stdout:
-                            print(f"({message_count}) Delta: {delta}s, {persona1 if ready_socket == client1 else persona2}: {message}")
-                        
+
                         message_count += 1
                         if max_messages > 0 and message_count >= max_messages:
                             logger.info(f"Reached max messages: {max_messages}")
                             raise Exception("Max messages reached")
-                        
+
                         if terminate:
                             logger.info("Terminate flag set, terminating...")
                             raise Exception("Terminate flag set")
@@ -635,7 +657,7 @@ def start_proxy(config, mirror_stdout, max_messages, logger, no_transcript, debu
                 ssml_file2.write('\n</voice>\n</speak>\n')
                 ssml_file2.close()
             server.close()
-            
+
         if not no_transcript:
             logger.info(f"Conversation ended. Transcript saved to {transcript_filename}")
         else:
@@ -654,7 +676,7 @@ def main():
     parser.add_argument('-d', '--debug', action='store_true', help='Enable debugging')
     parser.add_argument('-l', '--logfile', help='Specify a log file')
     parser.add_argument('-c', '--config', default='config/llm_proxy_config.yml', help='Specify a config file')
-    parser.add_argument('-t', '--translate_config', default='config/ollama_interpreter.yml', help='Specify a config file')
+    parser.add_argument('-t', '--translate_config', default='config/llm_language_interpreter.yml', help='Specify a config file')
     parser.add_argument('-H','--host', default='127.0.0.1', help='Specify the host')
     parser.add_argument('-p','--port', type=int, default=18888, help='Specify the port')
     parser.add_argument('-q','--quiet', action='store_true', help='Enable quiet mode with minimal logging')
@@ -692,11 +714,21 @@ def main():
         logging.basicConfig(filename=config['proxy']['logfile'], level=log_level, format=log_format)
     else:
         logging.basicConfig(level=log_level, format=log_format)
-    logger = logging.getLogger('tcp_proxy')
+    logger = logging.getLogger("llm_proxy.py")
 
     translate_config = load_config(args.translate_config)
 
-    translate_client = ollama.Client(host=translate_config.get('host', 'http://localhost:11434'))
+    api_key = ""
+    if translate_config["Agent"]["service"] == "openai":
+        load_dotenv()  # This will load variables from a .env file if it exists
+        api_key = os.getenv("OPENAI_API_KEY")
+        if not api_key:
+            raise ValueError("OPENAI_API_KEY not found in environment variables")
+
+    base_url = config.get('api_base', None)
+    logging.debug(f"Using base_url: {base_url}")
+
+    translate_client = openai.Client(api_key=api_key, base_url=base_url)
 
     start_proxy(config, config['proxy'].get('mirror', False), config['proxy'].get('max_messages', 10), logger, config['proxy'].get('no_transcript', False), args.debug, args.tts)
 
