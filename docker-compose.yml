@@ -1,0 +1,64 @@
+version: "3.9"
+
+services:
+  llm_proxy:
+    build: .
+    image: llm-meetup
+    container_name: llm_proxy
+    command: ["llm_proxy.py", "-H", "0.0.0.0", "-p", "18888"]
+    ports:
+      - "18888:18888"
+    volumes:
+      - ./config:/app/config
+      - ./personas:/app/personas
+      - ./logs:/app/logs
+    networks:
+      - traefik_public
+    labels:
+      - "traefik.enable=true"
+      - "traefik.tcp.routers.llm_proxy.rule=HostSNI(`*`)"
+      - "traefik.tcp.routers.llm_proxy.entrypoints=llm-proxy"
+      - "traefik.tcp.services.llm_proxy.loadbalancer.server.port=18888"
+      - "traefik.docker.network=traefik_public"
+
+  openai_service:
+    image: llm-meetup
+    entrypoint: ["python", "openai_service.py"]
+    command: ["personas/einstein_en.md", "-H", "llm_proxy", "-p", "18888"]
+    volumes:
+      - ./config:/app/config
+      - ./personas:/app/personas
+      - ./logs:/app/logs
+    networks:
+      - traefik_public
+    depends_on:
+      - llm_proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.tcp.routers.openai.rule=HostSNI(`openai`)"
+      - "traefik.tcp.routers.openai.entrypoints=openai"
+      - "traefik.tcp.services.openai.loadbalancer.server.port=18888"
+      - "traefik.docker.network=traefik_public"
+
+  anthropic_service:
+    image: llm-meetup
+    entrypoint: ["python", "anthropic_service.py"]
+    command: ["personas/einstein_en.md", "-H", "llm_proxy", "-p", "18888"]
+    volumes:
+      - ./config:/app/config
+      - ./personas:/app/personas
+      - ./logs:/app/logs
+    networks:
+      - traefik_public
+    depends_on:
+      - llm_proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.tcp.routers.anthropic.rule=HostSNI(`anthropic`)"
+      - "traefik.tcp.routers.anthropic.entrypoints=anthropic"
+      - "traefik.tcp.services.anthropic.loadbalancer.server.port=18888"
+      - "traefik.docker.network=traefik_public"
+
+networks:
+  traefik_public:
+    external: true
