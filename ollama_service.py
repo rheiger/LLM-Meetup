@@ -283,7 +283,9 @@ def main():
 
     config = load_config(args.config)
     config["model"] = os.getenv("OLLAMA_MODEL", config.get("model"))
-    config["host"] = os.getenv("OLLAMA_API_HOST", config.get("host", "http://localhost:11434"))
+    config["host"] = os.getenv(
+        "OLLAMA_API_HOST", config.get("host", "http://localhost:11434")
+    )
 
     system_prompt, persona_name = load_system_prompt(args.prompt_file)
 
