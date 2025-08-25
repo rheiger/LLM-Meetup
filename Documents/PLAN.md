@@ -2,6 +2,7 @@
 
 Based on `BRAINSTORM.md`, the following tasks will guide development. Track progress by marking each checkbox.
 
+- [x] Add `.editorconfig` for consistent coding style
 - [ ] Issue #7: Implement ChatML-style message protocol
 - [ ] Issue #8: Create FastAPI backend and Tailwind front end
 - [ ] Issue #10: Limit concurrent sessions to two & restrict API usage by IP/domain

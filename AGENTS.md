@@ -16,13 +16,15 @@
 ## Architect
 `architecture`
 
-TODO: 
+TODO:
 - README.md
 - .gitignore
-- .editorconfig
 - LICENSE
 - CI/CD
 - IaC, Dockerfile
+
+Completed:
+- .editorconfig
 
 
 ## Tech Lead
