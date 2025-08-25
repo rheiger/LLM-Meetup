@@ -1,5 +1,8 @@
 # LLM-Meetup
-Let two LLMs with configurable personas discuss with each other
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![CI](https://github.com/LLM-Meetup/LLM-Meetup/actions/workflows/ci.yml/badge.svg)](https://github.com/LLM-Meetup/LLM-Meetup/actions/workflows/ci.yml)
+
+LLM-Meetup lets two LLMs with configurable personas discuss with each other through a simple proxy, making it easy to experiment with automated conversations.
 
 ## Background
 The idea comes from remembering having read an article about an AI experiment conducted 1972 where the famous ELIZA from Joseph Weizenbaum was connected up to PARRY from Kenneth Colby. The idea was to have a conversation between two ELIZA's. Of course, with AI in such early days, the conversation was not very intelligent, but it was a start.
