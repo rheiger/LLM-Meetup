@@ -960,6 +960,10 @@ def main():
     # install signal handlers
     signal.signal(signal.SIGINT, signal_handler)
 
+    load_dotenv()
+    env_host = os.getenv("LLM_PROXY_HOST", "127.0.0.1")
+    env_port = int(os.getenv("LLM_PROXY_PORT", "18888"))
+
     parser = argparse.ArgumentParser(description="TCP Proxy with transcription")
     parser.add_argument(
         "-m", "--mirror", action="store_true", help="Mirror transcript to stdout"
@@ -988,9 +992,9 @@ def main():
         default="config/llm_language_interpreter.yml",
         help="Specify a config file",
     )
-    parser.add_argument("-H", "--host", default="127.0.0.1", help="Specify the host")
+    parser.add_argument("-H", "--host", default=env_host, help="Specify the host")
     parser.add_argument(
-        "-p", "--port", type=int, default=18888, help="Specify the port"
+        "-p", "--port", type=int, default=env_port, help="Specify the port"
     )
     parser.add_argument(
         "-q",
@@ -1029,8 +1033,8 @@ def main():
     config["proxy"]["max_messages"] = args.max_messages
     config["proxy"]["verbose"] = args.verbose
     config["proxy"]["logfile"] = args.logfile
-    config["proxy"]["host"] = args.host
-    config["proxy"]["port"] = args.port
+    config["proxy"]["host"] = os.getenv("LLM_PROXY_HOST", args.host)
+    config["proxy"]["port"] = int(os.getenv("LLM_PROXY_PORT", args.port))
     config["proxy"]["no_transcript"] = args.no_transcript
 
     if args.quiet:
@@ -1054,12 +1058,11 @@ def main():
 
     api_key = ""
     if translate_config["Agent"]["service"] == "openai":
-        load_dotenv()  # This will load variables from a .env file if it exists
         api_key = os.getenv("OPENAI_API_KEY")
         if not api_key:
             raise ValueError("OPENAI_API_KEY not found in environment variables")
 
-    base_url = config.get("api_base", None)
+    base_url = os.getenv("OPENAI_API_BASE", config.get("api_base", None))
     logging.debug(f"Using base_url: {base_url}")
 
     translate_client = openai.Client(api_key=api_key, base_url=base_url)

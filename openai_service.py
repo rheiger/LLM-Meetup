@@ -125,6 +125,11 @@ def handle_client(
 def main():
     # install signal handlers
     signal.signal(signal.SIGINT, signal_handler)
+
+    load_dotenv()
+    env_host = os.getenv("LLM_PROXY_HOST", "127.0.0.1")
+    env_port = int(os.getenv("LLM_PROXY_PORT", "18888"))
+
     parser = argparse.ArgumentParser(description="OpenAI GPT TCP Server")
     parser.add_argument(
         "prompt_file", nargs="?", help="Markdown file containing the system prompt"
@@ -132,8 +137,10 @@ def main():
     parser.add_argument(
         "-c", "--config", default="config/openai.yml", help="YAML configuration file"
     )
-    parser.add_argument("-H", "--host", default="127.0.0.1", help="TCP server host")
-    parser.add_argument("-p", "--port", type=int, default=18888, help="TCP server port")
+    parser.add_argument("-H", "--host", default=env_host, help="TCP server host")
+    parser.add_argument(
+        "-p", "--port", type=int, default=env_port, help="TCP server port"
+    )
     parser.add_argument("-l", "--logfile", help="Log file path")
     parser.add_argument(
         "-v", "--verbose", action="store_true", help="Enable verbose logging"
@@ -197,12 +204,13 @@ def main():
     logging.debug(f"Using config file: {args.config}")
 
     config = load_config(args.config)
+    config["model"] = os.getenv("OPENAI_MODEL", config.get("model"))
+    config["api_base"] = os.getenv("OPENAI_API_BASE", config.get("api_base"))
 
     logging.debug(f"Using config: {config}")
 
     system_prompt, persona_name = load_system_prompt(args.prompt_file)
 
-    load_dotenv()  # This will load variables from a .env file if it exists
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
         raise ValueError("OPENAI_API_KEY not found in environment variables")

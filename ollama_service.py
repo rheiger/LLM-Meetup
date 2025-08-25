@@ -1,14 +1,15 @@
 import argparse
 import yaml
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Tuple
 import socket
 import ollama
-from typing import Tuple
 import logging
 import json
 import random
 import sys
 import signal
+from dotenv import load_dotenv
+import os
 
 __version__ = (
     "This is version v0.5.1 (build: 61) by rheiger@icloud.com on 2024-08-29 13:58:46"
@@ -204,6 +205,11 @@ def handle_client(
 def main():
     # install signal handlers
     signal.signal(signal.SIGINT, signal_handler)
+
+    load_dotenv()
+    env_host = os.getenv("LLM_PROXY_HOST", "127.0.0.1")
+    env_port = int(os.getenv("LLM_PROXY_PORT", "18888"))
+
     parser = argparse.ArgumentParser(description="Ollama LLM TCP Server")
     parser.add_argument(
         "prompt_file", nargs="?", help="Markdown file containing the system prompt"
@@ -211,8 +217,10 @@ def main():
     parser.add_argument(
         "-c", "--config", default="config/ollama.yml", help="YAML configuration file"
     )
-    parser.add_argument("-H", "--host", default="127.0.0.1", help="TCP server host")
-    parser.add_argument("-p", "--port", type=int, default=18888, help="TCP server port")
+    parser.add_argument("-H", "--host", default=env_host, help="TCP server host")
+    parser.add_argument(
+        "-p", "--port", type=int, default=env_port, help="TCP server port"
+    )
     parser.add_argument("-l", "--logfile", help="Log file path")
     parser.add_argument(
         "-v", "--verbose", action="store_true", help="Enable verbose logging"
@@ -274,6 +282,8 @@ def main():
             logging.getLogger().addHandler(console_logger)
 
     config = load_config(args.config)
+    config["model"] = os.getenv("OLLAMA_MODEL", config.get("model"))
+    config["host"] = os.getenv("OLLAMA_API_HOST", config.get("host", "http://localhost:11434"))
 
     system_prompt, persona_name = load_system_prompt(args.prompt_file)
 
