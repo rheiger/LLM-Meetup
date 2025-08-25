@@ -11,6 +11,7 @@ import pyttsx3
 import random
 import signal
 from typing import Dict, Any
+from chatml import encode as chatml_encode, decode as chatml_decode
 
 # import ollama
 import openai
@@ -719,9 +720,11 @@ def start_proxy(
                         logger.debug(
                             f"Received {len(data)} bytes from {ready_socket.getpeername()}: {data}"
                         )
-                        message = data.decode("utf-8").strip()
-                        # message = re.sub(r'\n+', ' ', message) # TODO Maybe remove this
-                        # logger.debug(f"Received message: {message}")
+                        raw_message = data.decode("utf-8").strip()
+                        chatml_msgs = chatml_decode(raw_message)
+                        message = (
+                            chatml_msgs[-1]["content"] if chatml_msgs else raw_message
+                        )
 
                         content1 = ""
                         content2 = ""
@@ -806,7 +809,9 @@ def start_proxy(
                                     ssml_file1.flush()
                                 translate_tts1.runAndWait()
                             last_time = datetime.datetime.now()
-                            client2.send(translation.encode("utf-8"))
+                            client2.send(
+                                chatml_encode("user", translation).encode("utf-8")
+                            )
 
                         # ------------------ Receive from client 2 ------------------
                         # Here is where we prepare to write out the transcript for session 2
@@ -887,7 +892,9 @@ def start_proxy(
                                     ssml_file2.flush()
                                 translate_tts2.runAndWait()
                             last_time = datetime.datetime.now()
-                            client1.send(translation.encode("utf-8"))
+                            client1.send(
+                                chatml_encode("user", translation).encode("utf-8")
+                            )
 
                         if not no_transcript:
                             # Do the actual write to the transcript file
