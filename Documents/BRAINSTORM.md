@@ -1,0 +1,28 @@
+# Quick Feature Brainstorm
+
+- Adapt the syntax and semantics to conform with formats used in chat/instruction APIs of LLMs (I think it uses either some kind of XML tags or some standard start-/stop-strings - you surely know best) for the messages between the personas representated by their respective LLMs. This should also help controlling the message flow and who is starting it and when the conversation ends
+  - Issue #7: `Implement ChatML-style message protocol`, Milestone: v0.6
+- Add a real user interface based on flask/django/fastapi at the backend and tailwind for the frontend. I don't think it is worth-while going all the way to introduce react to the game, at least not for now. But feel free to give me your opinion
+  - Issue #8: `Create FastAPI backend and Tailwind front end`, depends on Issue #7, Milestone: v0.6
+- This is going to be a game-like server, which should be open to anybody, without having to sign-up/login for now. But we should limit the number of parallel running sessions to 2 and for using commercial APIs from OpenAI and Anthropic we shall restrict that to only specific source domains or source IP-addresses
+  - Issue #10: `Limit concurrent sessions to two & restrict API usage by IP/domain`, depends on Issue #8, Milestone: v0.6
+- The landing page should explain what the experiment is about and give a short introduction on how to use it
+  - Issue #9: `Add landing page with usage instructions`, depends on Issue #8, Milestone: v0.6
+- On a next page the user can select the two oponents by specifying which persona to use, which LLM (provider and model, as dynamically retrieved from the chosen provider) to use, whether to use a single language by user's choice for the conversation or have the oponents use their natural mother tongue and use a column between the two oponents with translation to a language of the user's choice, how many rounds to run the conversation for unless the oponents decide to end early limit the maximum rounds to 20 back and forth, who should start
+  - Issue #11: `Build conversation configuration UI (persona, models, language, rounds, starter)`, depends on Issue #8, Milestone: v0.7
+- Optionally users can add their own personas following a scheme
+  - Issue #12: `Support user-supplied personas and system prompts`, depends on Issue #11, Milestone: v0.7
+- Optionally users can write their own system prompts based on a sample for each oponent
+  - Issue #12
+- If the user's browser supports TTS then user can activate it and the system shall select appropriate voices for each oponent to propose and user may choose a different one of his personal preference
+  - Issue #13: `Implement optional TTS with voice selection`, depends on Issue #11, Milestone: v0.8
+- Since the platform is going to be very open it would make a lot of sense to collect and provide usage statistics to the operator of the system
+  - Issue #14: `Collect and expose usage statistics`, depends on Issue #8, Milestone: v0.7
+- Further down the road we may introduce sign-up and login as mandatory, if the system gets used a lot. Login shall support passkey and OAuth and OTP but no password. Minimum information required for sign-up will be a username (check that it is unique) and an email address, add some minimal check that an individual can only create a limited number of users, optionally provide the means that an administrator of the platform must accept the sign-up
+  - Issue #15: `Add user authentication (passkeys, OAuth, OTP)`, depends on Issue #8, Milestone: v0.9
+- For users that are logged in provide the possibility to add their own API-keys for commercial providers like OpenAI, Anthropic, Mistral, ... - encrypt the API keys locally
+  - Issue #15
+- For TTS by logged on users provide the possibility to use Elevenlabs as voice provider, allowing to select from any available voice of the respective user - need to add a connection of the user to elevenlabs
+  - Issue #16: `Secure storage of user API keys`, depends on Issue #15, Milestone: v0.9
+- Provide a download option of a conversation as PDF or Markdown
+  - Issue #17: `Conversation download as PDF/Markdown`, depends on Issue #11, Milestone: v0.8
