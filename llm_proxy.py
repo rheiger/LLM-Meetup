@@ -1,5 +1,4 @@
 import socket
-import threading
 import sys
 import datetime
 import re
@@ -9,10 +8,9 @@ import yaml
 import time
 import select
 import pyttsx3
-import langdetect
 import random
 import signal
-from typing import Dict, Any, List, Tuple
+from typing import Dict, Any
 
 # import ollama
 import openai
@@ -37,7 +35,7 @@ def load_config(config_file: str) -> Dict[str, Any]:
 
 # Implement a signal handler for SIGINT (Ctrl+C)
 def signal_handler(sig, frame):
-    global terminate, in_accept
+    global terminate
     logging.info("Received SIGINT (Ctrl+C), terminating... ASAP")
     terminate = True
     if in_accept:
@@ -145,7 +143,6 @@ def handle_client(
             match = re.match(pattern, data)
 
             if match:
-                full_name = match.group(1)
                 persona_name = match.group("persona_name").strip()
                 persona_lang = (
                     match.group("persona_lang").strip()
@@ -512,7 +509,7 @@ def language_lookup(language_code, logger, debug=False):
 
 
 def translate(text, source_language, target_language, logger, debug=False):
-    global translate_client, translate_config
+    # translate_client and translate_config are read-only here
     if not translate_client:
         logger.error(
             "Translation client not initialized. Please call initialize_translation_client() first."
@@ -563,7 +560,7 @@ def translate(text, source_language, target_language, logger, debug=False):
 def start_proxy(
     config, mirror_stdout, max_messages, logger, no_transcript, debug=False, tts=False
 ):
-    global terminate, in_accept
+    global in_accept
     port = config["proxy"]["port"]
     host = config["proxy"]["host"]
     hello = config["proxy"].get("hello", "")
@@ -777,7 +774,7 @@ def start_proxy(
                                     f"---------\nTranslationtime: {delta_translation}s, {persona1}[{lang2}]: {translation.strip()}"
                                 )
                             if mirror_stdout:
-                                print(f"^^^^^^^^^^^^^^^^^^^^^^^")
+                                print("^^^^^^^^^^^^^^^^^^^^^^^")
 
                             # ------ Speak if wanted
                             if tts_engine1:
@@ -856,7 +853,7 @@ def start_proxy(
                                     f"---------\nTranslationtime: {delta_translation}s, {persona2}[{lang1}]: {translation.strip()}"
                                 )
                             if mirror_stdout:
-                                print(f"^^^^^^^^^^^^^^^^^^^^^^^")
+                                print("^^^^^^^^^^^^^^^^^^^^^^^")
 
                             # ---------- Speak if wanted
                             if tts_engine2:

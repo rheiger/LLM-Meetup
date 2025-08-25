@@ -104,7 +104,6 @@ def handle_client(
     quiet: bool,
 ) -> None:
     """Handle client connections and process requests."""
-    global terminate
 
     # Send persona name to proxy
     s.sendall(f"/iam: {persona_name}.{config['model']}\n".encode("utf-8"))
@@ -143,7 +142,7 @@ def handle_client(
                 keep_looping = False
             if terminate:
                 keep_looping = False
-                logging.info(f"SIGINT detected terminating now")
+                logging.info("SIGINT detected terminating now")
 
             # Needed to keep context for ollama
             chat_history.append({"role": "user", "content": data})
