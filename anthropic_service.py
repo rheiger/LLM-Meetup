@@ -9,6 +9,7 @@ from typing import Tuple
 import sys
 import logging
 import signal
+from chatml import encode as chatml_encode, decode as chatml_decode
 
 __version__ = (
     "This is version v0.5.1 (build: 61) by rheiger@icloud.com on 2024-08-29 13:58:46"
@@ -57,8 +58,10 @@ def handle_client(
     keep_looping = True
     while keep_looping:
         try:
-            data = s.recv(max_bytes).decode("utf-8").strip()
-            logging.debug(f"Received: '{data}'")
+            raw = s.recv(max_bytes).decode("utf-8").strip()
+            logging.debug(f"Received: '{raw}'")
+            messages = chatml_decode(raw)
+            data = messages[-1]["content"] if messages else raw
             if not data:
                 logging.warning("Received empty data, closing connection")
                 break
@@ -104,7 +107,7 @@ def handle_client(
             if not keep_looping:
                 reply += "/end\n"
             logging.debug(f"Reply with '{reply}'")
-            s.sendall(reply.encode("utf-8"))
+            s.sendall(chatml_encode("assistant", reply).encode("utf-8"))
             msg_count += 1
         except Exception as e:
             logging.exception(f"Error: {e}")
