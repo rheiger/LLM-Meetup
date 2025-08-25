@@ -28,10 +28,14 @@ python anthropic_service.py personas/psychotherapist.md --host localhost --port 
 ```
 
 ### Docker
-`docker-compose` reads settings from a `.env` file. Copy `env.example` to `.env` and customize the values, then run:
+`docker-compose` reads settings from a `.env` file. Copy `env.example` to `.env` and customize the values, then start the stack:
 
 ```bash
-docker-compose up --build
+docker-compose up --build -d
+
+# in separate terminals run services inside the container
+docker-compose exec llm_meetup python openai_service.py personas/einstein_en.md --host llm_meetup --port ${LLM_PROXY_PORT}
+docker-compose exec llm_meetup python anthropic_service.py personas/psychotherapist.md --host llm_meetup --port ${LLM_PROXY_PORT}
 ```
 
 ## Configuration
@@ -94,6 +98,9 @@ This has only been tested on a Mac. It uses voices provided by macOS. You need t
 
 ## Outlook
 There will be more to come. Feedback is welcome.
+
+### Roadmap
+- Expand the web UI so conversations can be configured and controlled when running in containers.
 
 #### Version and last edited
 This is version: v0.5.1 (build: 61) by rheiger@icloud.com on 2024-08-29 13:58:46
