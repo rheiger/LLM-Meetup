@@ -28,14 +28,14 @@ python anthropic_service.py personas/psychotherapist.md --host localhost --port 
 ```
 
 ### Docker
-`docker-compose` reads settings from a `.env` file. Copy `.env.example` to `.env`, set your keys, then run:
+`docker-compose` reads settings from a `.env` file. Copy `env.example` to `.env` and customize the values, then run:
 
 ```bash
 docker-compose up --build
 ```
 
 ## Configuration
-Services read default configuration from environment variables before parsing command line options. Create a `.env` file (see `.env.example`) to set values:
+Services read default configuration from environment variables before parsing command line options. Create a `.env` file (see `env.example`) to set values:
 
 | Variable | Purpose |
 | --- | --- |
