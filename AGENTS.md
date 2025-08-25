@@ -1,5 +1,12 @@
 # 🤖 AI Agent Guidelines for LLM-Meetup
 
+## Documentation & Planning
+
+- Use the `Documents/` directory to manually track issues, milestones, and progress.
+- `Documents/BRAINSTORM.md` lists feature ideas with links to related issues and milestones.
+- Update or create Markdown files in `Documents/` when plans or statuses change.
+- Prefer concise bullet points and reference issue numbers where applicable.
+
 ## Product Owner
 `project_description`, `user_stories`, `user_tasks`
 
