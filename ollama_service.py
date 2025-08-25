@@ -4,6 +4,7 @@ from typing import Dict, Any, List, Tuple
 import socket
 import ollama
 import logging
+from chatml import encode as chatml_encode, decode as chatml_decode
 import json
 import random
 import sys
@@ -110,6 +111,7 @@ def handle_client(
     s.sendall(f"/iam: {persona_name}.{config['model']}\n".encode("utf-8"))
 
     chat_history: List[Dict[str, str]] = [{"role": "system", "content": system_prompt}]
+    msg_count = 0
     max_bytes = (
         config["max_tokens"] * 30 + 1024 if "max_tokens" in config else 32768
     )  # Estimate 6 bytes per character (safe for UTF-8)
@@ -117,8 +119,10 @@ def handle_client(
     keep_looping = True
     while keep_looping:
         try:
-            data = s.recv(max_bytes + 2048).decode("utf-8").strip()
-            logging.debug(f"Received: '{data}'")
+            raw = s.recv(max_bytes + 2048).decode("utf-8").strip()
+            logging.debug(f"Received: '{raw}'")
+            messages = chatml_decode(raw)
+            data = messages[-1]["content"] if messages else raw
             if not data:
                 logging.warning("Received empty data, closing connection")
                 break
@@ -144,6 +148,12 @@ def handle_client(
             if terminate:
                 keep_looping = False
                 logging.info("SIGINT detected terminating now")
+
+            data = (
+                data.replace("/start", "Hello")
+                if msg_count == 0
+                else data.replace("/start", ".")
+            )
 
             # Needed to keep context for ollama
             chat_history.append({"role": "user", "content": data})
@@ -185,10 +195,11 @@ def handle_client(
             )
 
             # Now send what the LLM created as reply
-            msg = f"{prefix}{filter_md(response['message']['content'])}"
+            msg = f"{prefix}{filter_md(response['message']['content'])}\n"
             if not keep_looping:
-                msg += "\n/end"
-            s.sendall(msg.encode("utf-8"))
+                msg += "/end\n"
+            s.sendall(chatml_encode("assistant", msg).encode("utf-8"))
+            msg_count += 1
         except (socket.error, ollama.ResponseError) as e:
             logging.exception(f"Error: {e}")
             break
