@@ -1,8 +1,8 @@
 import argparse
 import yaml
-from typing import Dict, Any, List
+from typing import Dict, Any
 import socket
-from anthropic import Anthropic, HUMAN_PROMPT, AI_PROMPT
+from anthropic import Anthropic
 from dotenv import load_dotenv
 import os
 from typing import Tuple
@@ -19,6 +19,7 @@ terminate = False
 
 # Implement a signal handler for SIGINT (Ctrl+C)
 def signal_handler(sig, frame):
+    # terminate is modified in signal_handler
     global terminate
     logging.info("Received SIGINT (Ctrl+C), terminating... ASAP")
     terminate = True
@@ -45,7 +46,6 @@ def handle_client(
     persona_name: str,
     quiet: bool,
 ) -> None:
-    global terminate
     # Send persona name to proxy
     logging.debug(f"Sending persona name to proxy: {persona_name}.{config['model']}")
     s.sendall(f"/iam: {persona_name}.{config['model']}\n".encode("utf-8"))
@@ -82,7 +82,7 @@ def handle_client(
                 logging.warning(f"Received /bye, Finishing the conversation ({data})")
                 keep_looping = False
             if terminate:
-                logging.info(f"Terminating conversation after INTR")
+                logging.info("Terminating conversation after INTR")
                 keep_looping = False
 
             data = (

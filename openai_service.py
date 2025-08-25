@@ -45,7 +45,6 @@ def handle_client(
     persona_name: str,
     quiet: bool,
 ) -> None:
-    global terminate
     # Send persona name to proxy
     logging.debug(f"Sending persona name to proxy: {persona_name}.{config['model']}")
     s.sendall(f"/iam: {persona_name}.{config['model']}\n".encode("utf-8"))
@@ -84,7 +83,7 @@ def handle_client(
                 logging.warning(f"Received /bye, Finishing the conversation ({data})")
                 keep_looping = False
             if terminate:
-                logging.info(f"Terminating conversation after INTR")
+                logging.info("Terminating conversation after INTR")
                 keep_looping = False
 
             data = (

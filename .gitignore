@@ -9,6 +9,7 @@ config/llm_proxy_*.yml
 __pycache__/*
 transcripts/*
 logs/*
+!logs/.gitkeep
 Testing/
 my_personas/
 ollama_translate_service.py
