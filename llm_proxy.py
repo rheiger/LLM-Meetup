@@ -528,7 +528,7 @@ def translate(text, source_language, target_language, logger, debug=False):
             {
                 "role": "system",
                 "content": f"""You are a professional **interpreter**, fluent in all relevant languages.
-                            You only translate the message text from the user from {language_lookup(source_language,logger,debug)} to {language_lookup(target_language, logger, debug)}.
+                            You only translate the message text from the user from {language_lookup(source_language, logger, debug)} to {language_lookup(target_language, logger, debug)}.
                             You don't add any additional information or commentary.
                             You never ask any questions.
                             If both languages are the same, you don't translate and just return the original message text.""",
