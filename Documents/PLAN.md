@@ -6,7 +6,7 @@ Based on `BRAINSTORM.md`, the following tasks will guide development. Track prog
 - [ ] Issue #7: Implement ChatML-style message protocol
   - [x] Add ChatML encode/decode utilities and wire them into proxy and OpenAI service
   - [x] Port Anthropic service to ChatML
-  - [ ] Port LM Studio service to ChatML
+  - [x] Port LM Studio service to ChatML
   - [ ] Port Ollama service to ChatML
 - [ ] Issue #8: Create FastAPI backend and Tailwind front end
 - [ ] Issue #10: Limit concurrent sessions to two & restrict API usage by IP/domain
