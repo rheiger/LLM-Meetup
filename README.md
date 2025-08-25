@@ -30,6 +30,33 @@ For simplicity the service scripts can be called by a single script `llm-service
 ## Installaion
 This is pretty simple to install. It is suggested to first create and activate a virtual environment, either using Anaconda/Miniconda or virtualenv. Then run `pip install -r requirements.txt` to install all required packages.
 
+## Environment variables
+The services read default configuration from environment variables before parsing command line options. Create a `.env` file (see `.env.example`) to set values:
+
+| Variable | Purpose |
+| --- | --- |
+| `LLM_PROXY_HOST` | Host where the proxy listens and where services connect |
+| `LLM_PROXY_PORT` | Port used by the proxy and the default for services |
+| `OPENAI_API_KEY` | API key for OpenAI and translation |
+| `OPENAI_MODEL` | Default model for the OpenAI service |
+| `OPENAI_API_BASE` | Optional base URL for the OpenAI API |
+| `ANTHROPIC_API_KEY` | API key for the Anthropic service |
+| `ANTHROPIC_MODEL` | Default model for the Anthropic service |
+| `OLLAMA_MODEL` | Default model for the Ollama service |
+| `OLLAMA_API_HOST` | URL of the Ollama API server |
+| `LMSTUDIO_MODEL` | Default model for the LM Studio service |
+| `LMSTUDIO_API_BASE` | Base URL for the LM Studio server |
+| `TRAFFIC_DOMAIN` | Domain used for Traefik routing with docker-compose |
+
+### Using `docker-compose`
+`docker-compose` automatically reads variables from a `.env` file in the project root. After copying `.env.example` to `.env` and setting your keys, start the stack with:
+
+```bash
+cp .env.example .env
+# edit .env with your keys and settings
+docker-compose up --build
+```
+
 ## Usage
 Start the llm-proxy.py script first, then start two llmm-agents.py scripts. The proxy will listen on port 18888 and 19999 for new connections. The agents will connect to the proxy on port 18888 and 19999. The agents will connect to the proxy on port 18888 and 19999. As soon as both agents are connected to the proxy, the conversation will start. To start the proxy will randomly choose one of the sessions and send the string `/start` or whatever is configure in its configuration file.
 
